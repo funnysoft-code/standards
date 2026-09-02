@@ -12,7 +12,7 @@ A UI change is not done until `route.png` is compared to `mock.png`, `route-mobi
 
 Do not invent tokens, typefaces, or a second visual language in the mock or the route. Do not grow the token file in a mock. No purple gradient, Inter, or three equal feature cards. Theme is named in DESIGN.md.
 
-Title and visible copy stay English.
+UI locale lives in product DESIGN.md and vision. Do not assume English.
 
 The owner often cannot name a visual direction. Offer two concrete options with a Mobbin screen each. Do not ask for vibe words.
 
