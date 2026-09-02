@@ -1,6 +1,6 @@
 ---
 description: Laravel agent layer. Boost, Herd, and backend conventions.
-paths: __LARAVEL_GLOBS__
+paths: [__LARAVEL_GLOBS__]
 ---
 
 # Laravel
