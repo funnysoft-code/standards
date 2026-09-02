@@ -209,7 +209,7 @@ JS/TS:
 
 - oxc family. No ESLint/Prettier.
 - Vite/Inertia apps: `vp lint` / `vp fmt` (vite-plus).
-- Next apps: oxlint / oxfmt.
+- Next apps: `oxlint --deny-warnings` / oxfmt.
 - `tsc --noEmit`.
 - React Doctor: zero warnings. Fix. Do not disable.
 - Vitest 100% line coverage of authored `lib/` (and workspace packages when they exist). Not page shells. A component with real logic moves into `lib/` first.
@@ -236,6 +236,8 @@ No repository interfaces. No `BaseAction` or `BaseRepository`. Constructor-injec
 
 Jobs: `ShouldQueue`, `Queueable`, `#[Timeout]` / `#[Tries]` / `#[Backoff]`, `failed()`.
 
+Action class names take the `*Action` suffix (`CreateSearchRunAction`). One public `execute()`. Laravel 13 `make:action` output is renamed to that suffix. No `CreatePost` short form.
+
 Events: past-tense names. `ShouldBroadcast` when live. `broadcastWith()` uses Data, never the raw model.
 
 Horizon is the playbook queue runner. Redis protocol for cache, sessions, locks, rate limits, and Horizon queues. Session keys use a dedicated prefix or Redis DB index so a cache flush cannot drop sessions. Pest may use `array` / `sync`. Production cache/session/Valkey on Laravel Cloud. Laptop: Herd Redis. Eloquent strict in non-production (lazy load throws).
@@ -244,7 +246,11 @@ Every product HTTP route has a named rate limiter. Pest architecture test fails 
 
 Error bodies stay Laravel `{ message, errors }`. Do not switch to RFC 7807.
 
-Unknown list query keys are 422. Allowlists live on the repository as public constants. Do not add a parallel `search` query key. Do not add `*IndexQuery` classes.
+Unknown list query keys are 422. Allowlists live on the repository as public constants via a shared `ValidatesPublicQuery` (or Inertia equivalent) trait. Do not copy allowlist loops into each Request. Do not add a parallel `search` query key. Do not add `*IndexQuery` classes.
+
+PATCH write Data uses Spatie `Optional`: omitted keys are not written. Do not invent a None sentinel. Do not use one Data class as both Request and HTTP response.
+
+Repeat a test assertion twice, then add a TestCase helper. Idempotency keys wait for the first write that needs them. Seeders that fabricate product rows run in local and testing only.
 
 Public identifiers are UUIDs. Integer ids never appear in HTTP. Primary key shape is variant.
 
@@ -418,7 +424,7 @@ Marketing/sites. bun, oxc, shadcn, design loop, Lefthook, Linear, adversary. No 
 
 ## Issue 3 reshape
 
-Replace `app/Queries` with repositories. Actions stop calling `::query` / `::create` / `->save`. Delete List/Show Actions. Move files under nouns. Move Feature tests to `tests/Http/{Noun}`. Stubs. Keep 100% coverage while files move. Architecture tests then lock persist-on-repository.
+Replace `app/Queries` with repositories. Actions stop calling `::query` / `::create` / `->save`. Delete List/Show Actions. Rename remaining Actions to the `*Action` suffix. Move files under nouns. Move Feature tests to `tests/Http/{Noun}`. Stubs. Keep 100% coverage while files move. Architecture tests then lock persist-on-repository.
 
 ## Issue 4 design
 
