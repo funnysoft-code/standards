@@ -1,0 +1,29 @@
+# Commit-time checks. CI runs the same scripts on pull requests.
+# Playwright is merge-time only. Do not add it here.
+
+commit-msg:
+  jobs:
+    - name: conventional-commit
+      run: scripts/lint-commit-msg.sh --file {1}
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: harness-parity
+      glob:
+        - ".cursor/**"
+        - ".grok/**"
+        - ".codex/**"
+        - ".agents/**"
+        - ".claude/**"
+        - "AGENTS.md"
+        - "boost.json"
+        - "scripts/harness-parity.sh"
+        - "lefthook.yml"
+      run: scripts/harness-parity.sh
+    - name: php
+      glob: ["app/**", "tests/**", "routes/**", "config/**", "database/**", "scripts/php-gate.sh"]
+      run: scripts/php-gate.sh all
+    - name: frontend
+      glob: ["resources/js/**", "resources/css/**", "package.json", "bun.lock", "scripts/frontend-gate.sh"]
+      run: scripts/frontend-gate.sh lint && scripts/frontend-gate.sh typecheck && scripts/frontend-gate.sh test && scripts/frontend-gate.sh doctor

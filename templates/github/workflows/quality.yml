@@ -1,0 +1,100 @@
+# Merge-time net. Same checks as Lefthook, plus optional product e2e later.
+# Do not add a slop scan. Deploy lives in product deploy.yml (workflow_call this).
+
+name: Quality
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  commit-lint:
+    name: commit-lint
+    if: github.event_name == 'pull_request'
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Lint commit messages and PR title
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          {
+            git log --format=%s --no-merges "origin/${BASE_REF}..HEAD"
+            printf '%s\n' "$PR_TITLE"
+          } | scripts/lint-commit-msg.sh
+
+  harness-parity:
+    name: harness-parity
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Harness parity
+        run: scripts/harness-parity.sh
+
+  php-gate:
+    name: php-${{ matrix.gate }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [pint, phpstan, rector, pest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
+        with:
+          php-version: "8.5"
+          coverage: pcov
+          extensions: pgsql, redis, mbstring, xml, ctype, tokenizer, json, bcmath
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        if: matrix.gate == 'phpstan' || matrix.gate == 'pest'
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: PHP gate
+        run: scripts/php-gate.sh ${{ matrix.gate }}
+
+  frontend-gate:
+    name: frontend-${{ matrix.gate }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [lint, typecheck, test, doctor]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@56408e9a3f6d4f21fb6b1bf4fd7529dc366d7611 # v2.0.2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Frontend gate
+        run: scripts/frontend-gate.sh ${{ matrix.gate }}
