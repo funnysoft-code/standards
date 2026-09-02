@@ -63,13 +63,13 @@ English for playbook, ADRs, templates, commit messages. Product UI locale is pro
 
 Apex Scout v2 is not a consumer. peca-certa only.
 
-Five F7T issues, one PR each:
+Five F7T issues, one PR each. Parent [F7T-126](https://linear.app/funnysoft/issue/F7T-126).
 
-1. Create `funnysoft-code/standards` with playbook docs, variants, templates, stamp script, Boost guidelines copy.
-2. Stamp peca-certa: four harness trees, `scripts/` (retire `bin/`), Lefthook (retire vite-plus hooks), quality CI + Cloud deploy on main, short AGENTS.md, product pillars, ADRs for deviations, drop `docs/agent/progress.md`.
-3. Noun folders + repositories. `tests/Http/{Noun}`. Architecture tests. Stubs.
-4. `design/` SSOT, DESIGN.md, mocks/screenshots for existing peca-certa screens (full Apex loop).
-5. Vitest 100% on `resources/js/lib`. Playwright TS replaces Pest Browser. No Maestro.
+1. [F7T-127](https://linear.app/funnysoft/issue/F7T-127) Create `funnysoft-code/standards` with playbook docs, variants, templates, stamp script, Boost guidelines copy.
+2. [F7T-128](https://linear.app/funnysoft/issue/F7T-128) Stamp peca-certa: four harness trees, `scripts/` (retire `bin/`), Lefthook (retire vite-plus hooks), quality CI + Cloud deploy on main, short AGENTS.md, product pillars, ADRs for deviations, drop `docs/agent/progress.md`.
+3. [F7T-129](https://linear.app/funnysoft/issue/F7T-129) Noun folders + repositories. `tests/Http/{Noun}`. Architecture tests. Stubs.
+4. [F7T-130](https://linear.app/funnysoft/issue/F7T-130) `design/` SSOT, DESIGN.md, mocks/screenshots for existing peca-certa screens (full Apex loop).
+5. [F7T-131](https://linear.app/funnysoft/issue/F7T-131) Vitest 100% on `resources/js/lib`. Playwright TS replaces Pest Browser. No Maestro.
 
 Linear-first. Team F7T. Branch `type/f7t-NNN-short-description`. Adversary approve on a recorded SHA before the PR. Agents may commit and push. Owner merges. Squash.
 
