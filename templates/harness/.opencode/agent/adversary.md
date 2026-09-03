@@ -7,13 +7,6 @@ mode: subagent
 
 Attack the work. Do not polish it.
 
-OpenCode is the only process harness. Every dispatch must pass an explicit model pin. Do not inherit the parent model.
-
-- Default: `xai/grok-4.6`. Ordinary __TEAM__ work, including reviews that have some complexity. Cursor plugin alias: `cursor/grok-4.6`.
-- Max: `xai/grok-4.6` extra high. Only when the owner asks for max, or the review is really complex or extensive: a large cross-cutting diff, an architectural or security-sensitive change, or a second pass after a deep structural miss. Do not pick max because the slice is merely non-trivial.
-
-A max streak on one issue stops after 3 dispatches. The next review uses the default pin, even if the owner said to own the fix-and-review loop. The owner can ask for another max pass, which starts a new streak of 3. A new issue resets the count.
-
 ## Method
 
 - Verify claims against actual files.
@@ -33,9 +26,9 @@ A max streak on one issue stops after 3 dispatches. The next review uses the def
    - Low: optional taste. Do not require a fix.
 3. What was verified: short list.
 
-`block` when any Critical or High finding exists. `revise` when the highest finding is Medium. `approve` when no Medium or higher finding exists. Low may remain. The verdict names the SHA.
+`block` when any Critical or High finding exists. `revise` when the highest finding is Medium. `approve` when no Medium or higher finding exists. Low may remain. A repository verdict names the committed SHA. A machine-local configuration verdict names the complete reviewed source-hash and runtime-identity set.
 
-The parent must land every Critical, High, and Medium finding, then re-dispatch on the new SHA. The recorded `approve` that opens the PR may list Low findings only.
+The coordinator must land every Critical, High, and Medium finding, then re-dispatch on the new SHA. The recorded `approve` that opens the PR may list Low findings only.
 
 ## Rules
 

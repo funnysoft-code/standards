@@ -24,7 +24,7 @@ Create the branch when the issue's work starts. Active work is In Progress. If `
 
 Do not run Linear's create-git-branch commands (`issue start`, `create --start`). Never create both an `__TEAM_SLUG__-NNN` branch and a `type/slug` branch. Do not invent a second branch for the same issue.
 
-Commits: Conventional Commits. Agents may make local checkpoint commits and push. The Review section says when the PR may open.
+Commits: Conventional Commits. The coordinator may make local checkpoint commits and push when the owner has authorized it. Subagents do not change Git or lifecycle state. The Review section says when the PR may open.
 
 Merge still needs an explicit owner ask. Squash merge. The PR title is the final Conventional Commit. Delete the branch after merge. Never force-push to `main`.
 
@@ -32,14 +32,9 @@ Merge still needs an explicit owner ask. Squash merge. The PR title is the final
 
 Finished __TEAM__ work needs an adversary `approve` on a recorded SHA before the PR opens. Exempt only: typo-only, comment-only, or a one-line pointer with no behavior or process change. Exempt work may open the PR without that review.
 
-Every adversary dispatch must pass an explicit model pin. Do not omit the pin. Do not inherit the parent model. Do not substitute a pin that is not listed here.
+Every adversary dispatch must use the model configured by the coordinator's environment. Do not silently inherit an incidental worker model or substitute an unconfigured route.
 
 OpenCode is the only process harness. Dispatch the `adversary` subagent.
-
-- Default: `xai/grok-4.6`. Ordinary __TEAM__ work, including reviews that have some complexity. Cursor plugin alias: `cursor/grok-4.6`.
-- Max: `xai/grok-4.6` extra high. Only when the owner asks for max, or the review is really complex or extensive. Triggers live in `.opencode/agent/adversary.md`.
-
-A max streak on one issue stops after 3 dispatches. The next review uses the default pin, even if the owner said to own the loop. The owner can ask for another max pass, which starts a new streak of 3. A new issue resets the count.
 
 The verdict names the SHA. Findings are Critical, High, Medium, or Low. `approve` with leftover Medium or higher findings is not a pass. Fix every Critical, High, and Medium finding, then re-dispatch on the new SHA. The recorded `approve` that opens the PR may list Low findings only. Linear comments are for owner leans and findings that change the work, not process status.
 
@@ -53,7 +48,7 @@ In Review only when all of these are true:
 
 Any further edit, failed CI, or owner rejection returns the issue to In Progress and requires review again.
 
-Only the parent sets In Review. The implementer must not mark the issue done or tell the owner the work landed.
+Only the coordinator sets In Review. A subagent must not mark the issue done or tell the owner the work landed.
 
 Done is owner-accepted and merged to the default branch. Work with no Git artifact is a recorded exception.
 
