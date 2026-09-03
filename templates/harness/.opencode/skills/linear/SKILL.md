@@ -11,7 +11,7 @@ Use the `linear` CLI. Workspace `funnysoft` is the default. Team is `__TEAM__`. 
 
 Backlog (uncommitted idea or parked lean), Todo (ready: dependencies and criteria resolved), In Progress, In Review, Done. Use Canceled for dropped work, with a one-line reason. Use Duplicate only to close a duplicate, and link it with `linear issue relation add __TEAM__-NNN duplicate __TEAM__-MMM`.
 
-When work starts, create `type/__TEAM_SLUG__-NNN-slug` and set the issue to In Progress. Set In Review after the review gate and an open PR. Done is owner-accepted and merged to the default branch. Work with no Git artifact is a recorded exception.
+When work starts, the coordinator creates `type/__TEAM_SLUG__-NNN-slug` and sets the issue to In Progress. The coordinator sets In Review after the review gate and an open PR. Done is owner-accepted and merged to the default branch. Work with no Git artifact is a recorded exception. Subagents return lifecycle changes to the coordinator instead of applying them.
 
 Failed CI, further edits, or owner rejection return the issue to In Progress. A regression after Done reopens to In Progress.
 
@@ -88,7 +88,7 @@ A harness retro that exists because of current work stays on that work's branch.
 
 Do not run `linear issue start` or `create --start`. Those commands create a git branch. Never create both an `__TEAM_SLUG__-NNN` branch and a `type/slug` branch for the same work. Do not invent a second branch for the same issue.
 
-Agents may commit and push. Merge still needs an explicit owner ask. Squash merge. The PR title is the final Conventional Commit. Delete the branch after merge.
+Only the coordinator may commit and push, and only with owner authorization. Subagents return changes without mutating Git or lifecycle state. Merge still needs an explicit owner ask. Squash merge. The PR title is the final Conventional Commit. Delete the branch after merge.
 
 When a milestone completes, post a project status update on the current product project:
 
