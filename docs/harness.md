@@ -25,7 +25,22 @@ There is no root `CLAUDE.md`.
 
 Boost lives in the Laravel app tree. Repo root on an Inertia monolith (`__BOOST_ARTISAN__` = `artisan`). `services/api` on an API (`__BOOST_ARTISAN__` = `services/api/artisan`). Stamp replaces `__BOOST_ARTISAN__` in overlay files only.
 
-Boost must not overwrite root `AGENTS.md`. Commit `boost.json`. Generated Boost skills, when kept, live under `.opencode/skills`. `funnysoft/boost-guidelines` ships API lines and Inertia+React lines. Inertia lines render only when those packages are installed.
+Boost must not overwrite root `AGENTS.md`. It may append a `<laravel-boost-guidelines>` block. Commit `boost.json`. Generated Boost skills live under `.opencode/skills`. Point Boost there with `config/boost.php` `agents.opencode.skills_path`. Do not let Boost recreate `.agents/`.
+
+`boost.json` must set `agents` to `["opencode"]`, `cloud` true, `guidelines` true, and `packages` must include `funnysoft/boost-guidelines`. Sail stays a product fact. peca-certa keeps `sail` false.
+
+Stamp copies `packages/boost-guidelines`. The product Composer file path-requires it:
+
+```json
+{
+  "repositories": [{ "type": "path", "url": "packages/boost-guidelines" }],
+  "require-dev": { "funnysoft/boost-guidelines": "@dev" }
+}
+```
+
+`funnysoft/boost-guidelines` ships API lines and Inertia+React lines. Inertia lines render only when those packages are installed.
+
+After `boost:update`, run `scripts/boost-sync-opencode-skills.sh` so Cloud skills in `.ai/skills` become real files under `.opencode/skills`. Hook it from Composer `post-update-cmd`.
 
 Authored MCP lives in `opencode.json`. Boost + Mobbin. Do not set a working directory on the Boost command; run it from the product root.
 

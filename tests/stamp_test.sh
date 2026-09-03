@@ -28,9 +28,11 @@ need .opencode/skills/linear/SKILL.md
 need .opencode/agent/adversary.md
 need opencode.json
 need scripts/harness-parity.sh
+need scripts/boost-sync-opencode-skills.sh
 need scripts/lint-commit-msg.sh
 need lefthook.yml
 need STANDARDS_VERSION
+need packages/boost-guidelines/resources/boost/guidelines/core.blade.php
 grep -q F7T "$tmp/.opencode/skills/linear/SKILL.md"
 grep -q artisan "$tmp/opencode.json"
 grep -qv __TEAM__ "$tmp/.opencode/skills/linear/SKILL.md"

@@ -44,6 +44,31 @@ else
     fail "missing real file boost.json"
 fi
 
+python3 - "$boost_json" <<'PY' || fail "${boost_json} must set agents=[opencode], cloud=true, guidelines=true, packages includes funnysoft/boost-guidelines"
+import json, sys
+cfg = json.load(open(sys.argv[1]))
+agents = set(cfg.get("agents") or [])
+packages = set(cfg.get("packages") or [])
+errors = []
+if "opencode" not in agents:
+    errors.append("agents must include opencode")
+if cfg.get("cloud") is not True:
+    errors.append("cloud must be true")
+if cfg.get("guidelines") is not True:
+    errors.append("guidelines must be true")
+if "funnysoft/boost-guidelines" not in packages:
+    errors.append("packages must include funnysoft/boost-guidelines")
+if errors:
+    print("\n".join(errors), file=sys.stderr)
+    raise SystemExit(1)
+PY
+
+need_real_dir packages/boost-guidelines
+need_real_file packages/boost-guidelines/resources/boost/guidelines/core.blade.php
+if ! grep -q 'funnysoft/boost-guidelines' composer.json && ! grep -q 'funnysoft/boost-guidelines' services/api/composer.json 2>/dev/null; then
+    fail "composer.json must require funnysoft/boost-guidelines"
+fi
+
 while IFS= read -r skill; do
     [[ -n "$skill" ]] || continue
     need_real_dir ".opencode/skills/${skill}"
@@ -60,8 +85,17 @@ for retired in .cursor .grok .agents .codex .claude; do
 done
 
 if leftover="$(find .opencode \( -name node_modules -o -name .git \) -prune -o -type l -print)"; then
-    if [[ -n "$leftover" ]]; then
-        fail "symlink leftover:${leftover//$'\n'/ }"
+    filtered=""
+    while IFS= read -r link; do
+        [[ -z "$link" ]] && continue
+        resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$link")"
+        case "$resolved" in
+            */.ai/skills/*) continue ;;
+        esac
+        filtered="${filtered}${link}"$'\n'
+    done <<< "$leftover"
+    if [[ -n "${filtered//[$'\n']/}" ]]; then
+        fail "symlink leftover:${filtered//$'\n'/ }"
     fi
 fi
 

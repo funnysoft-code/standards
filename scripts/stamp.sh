@@ -29,6 +29,7 @@ copy_tree() {
   cp -R "$src"/. "$dest"/
 }
 copy_tree "$root/templates/harness" "$target"
+copy_tree "$root/packages/boost-guidelines" "$target/packages/boost-guidelines"
 mkdir -p "$target/scripts" "$target/.github/workflows"
 cp "$root/templates/scripts/"* "$target/scripts/"
 cp "$root/templates/lefthook.yml" "$target/lefthook.yml"

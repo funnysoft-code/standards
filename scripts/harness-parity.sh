@@ -53,8 +53,17 @@ for retired in .cursor .grok .agents .codex .claude; do
 done
 
 if leftover="$(find "${prefix}/.opencode" \( -name node_modules -o -name .git \) -prune -o -type l -print)"; then
-    if [[ -n "$leftover" ]]; then
-        fail "symlink leftover:${leftover//$'\n'/ }"
+    filtered=""
+    while IFS= read -r link; do
+        [[ -z "$link" ]] && continue
+        resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$link")"
+        case "$resolved" in
+            */.ai/skills/*) continue ;;
+        esac
+        filtered="${filtered}${link}"$'\n'
+    done <<< "$leftover"
+    if [[ -n "${filtered//[$'\n']/}" ]]; then
+        fail "symlink leftover:${filtered//$'\n'/ }"
     fi
 fi
 
