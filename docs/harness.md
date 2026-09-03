@@ -12,7 +12,7 @@ OpenCode owns `.opencode/` and `opencode.json`. Do not add a second process harn
 | --- | --- | --- |
 | Always-on overlay | `.opencode/rules/*.md` via `opencode.json` `instructions` | Loaded every session |
 | Skills | `.opencode/skills/<name>/SKILL.md` | On-demand procedures |
-| Adversary | `.opencode/agent/adversary.md` | Subagent. Pin a model on dispatch |
+| Adversary | `.opencode/agent/adversary.md` | Subagent. Uses the coordinator environment's configured review route |
 | Commands | `.opencode/command/*.md` | Slash commands when a product adds them |
 | MCP | `opencode.json` | Boost + Mobbin |
 | Product brief | `AGENTS.md` | Short. Points at the playbook pin and product docs |
@@ -20,6 +20,14 @@ OpenCode owns `.opencode/` and `opencode.json`. Do not add a second process harn
 Creative-mode is a skill. Do not put it in `.opencode/rules` or OpenCode would always-load it.
 
 There is no root `CLAUDE.md`.
+
+## Shared and machine-local layers
+
+The stamped harness owns portable product and team behavior. Product facts and named deviations outrank accepted product decisions and design authority, which outrank the pinned shared playbook, which outranks inferred code patterns. Agents discover the smallest relevant set of docs, decisions, implementation files, callers, and examples before loading broader context.
+
+Personal orchestration stays in global OpenCode configuration. The coordinator, context scout, research specialist, implementation worker, provider choices, model effort, and retry policy are machine-local. They are not stamped into products. Products use their pinned playbook instead of a live global reference to this checkout.
+
+Compound Engineering remains the primary workflow suite. Machine-local roles route bounded work into that workflow; they do not duplicate its planning, implementation, review, or shipping procedures. The project adversary remains shared because its review method and quality gate are team behavior, while its model and permission ceiling remain personal configuration.
 
 ## Boost vs process
 

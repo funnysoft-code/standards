@@ -51,13 +51,7 @@ harness/f7t-127-standards-repo
 
 Adversary on a recorded SHA before the PR opens. Exempt: typo-only, comment-only, or a one-line pointer with no behavior or process change.
 
-Every adversary dispatch passes an explicit model pin. Do not inherit the parent model.
-
-| Harness | Default | Max |
-| --- | --- | --- |
-| OpenCode | `xai/grok-4.6` | `xai/grok-4.6` extra high |
-
-A max streak on one issue stops after 3 dispatches. Next review uses the default pin. Owner can start a new streak of 3. Pins live in `.opencode/agent/adversary.md`.
+Every adversary dispatch uses the review route configured by the coordinator's environment. Provider, model, effort, and retry-streak choices are personal configuration, not shared standards.
 
 Verdict: `approve`, `revise`, or `block`. Findings Critical, High, Medium, Low. `approve` with leftover Medium or higher is not a pass. Fix Critical, High, and Medium, then re-dispatch on the new SHA. The recorded `approve` that opens the PR may list Low only. No compliments.
 
@@ -65,13 +59,13 @@ If the diff changes a screen, missing mock/route screenshots at both viewports i
 If the diff changes harness files, a procedure inside a rule or an always-true constraint inside a skill is Critical.
 If the diff ships a finishable job, missing product-code coverage under 100% is Critical.
 
-In Review only when acceptance criteria are checked, dependencies resolved, local gates that exist have been run, adversary approved (or exempt), and the PR is open. Only the parent sets In Review. The implementer must not mark the issue done.
+In Review only when acceptance criteria are checked, dependencies resolved, local gates that exist have been run, adversary approved (or exempt), and the PR is open. Only the coordinator sets In Review. A subagent must not mark the issue done.
 
 ## Merge
 
 Done is owner-accepted and merged to the default branch. Squash merge. Owner merges. PR title is the final Conventional Commit. Delete the branch. Never force-push `main`. Work with no Git artifact is a recorded exception.
 
-Agents may commit and push. Merge still needs an explicit owner ask.
+Only the coordinator may commit and push, and only with owner authorization. Subagents return changes without mutating Git or lifecycle state. Merge still needs an explicit owner ask.
 
 ## ADRs
 
