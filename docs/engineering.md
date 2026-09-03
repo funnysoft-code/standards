@@ -24,7 +24,7 @@ Laravel products (v1 quality-then-deploy, no semver):
 - PRs: quality workflow (fold lint, tests, and security into it).
 - Push to main: same quality, then Laravel Cloud deploy. Serialize deploys. PRs never deploy. No auto-version, no GitHub Release, no `dev` promote branch.
 
-`scripts/lint-commit-msg.sh` and harness-parity run on every PR. CI also lints the PR title (squash subject).
+`scripts/lint-commit-msg.sh` runs on every PR. CI also lints the PR title (squash subject).
 
 Do not use `--no-verify` unless the owner asks.
 

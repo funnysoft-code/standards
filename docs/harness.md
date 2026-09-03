@@ -6,7 +6,7 @@ Laravel Boost is the Laravel agent layer, not the process harness.
 
 ## One tree
 
-OpenCode owns the native tree. Bodies are copied. Do not symlink. `scripts/harness-parity.sh` fails if OpenCode artifacts are missing, a retired tree remains, or a symlink is used. It does not merge bodies.
+OpenCode owns `.opencode/` and `opencode.json`. Do not add a second process harness.
 
 | Artifact | Path | Job |
 | --- | --- | --- |

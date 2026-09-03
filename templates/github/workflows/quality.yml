@@ -39,16 +39,6 @@ jobs:
             printf '%s\n' "$PR_TITLE"
           } | scripts/lint-commit-msg.sh
 
-  harness-parity:
-    name: harness-parity
-    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Harness parity
-        run: scripts/harness-parity.sh
-
   php-gate:
     name: php-${{ matrix.gate }}
     runs-on: blacksmith-4vcpu-ubuntu-2404-arm

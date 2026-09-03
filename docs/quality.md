@@ -53,7 +53,6 @@ Stubbed Playwright on CI. Live against Herd on the laptop. Lefthook skips Playwr
 | Script | Job |
 | --- | --- |
 | `stamp.sh` | In this repo. Copy templates into a product at a pin. |
-| `harness-parity.sh` | Names exist, no symlinks. |
 | `lint-commit-msg.sh` | Conventional Commits allowlist. |
 | `php-gate.sh` | `pint\|phpstan\|rector\|pest\|all` (Inertia monolith). API variant may keep `api-gate.sh`. |
 | `frontend-gate.sh` | `lint\|typecheck\|test\|e2e\|doctor` (plus `schema\|workflows` on API+Next). |

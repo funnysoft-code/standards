@@ -17,7 +17,7 @@ AGENTS.md in a product is short. It points at the playbook pin, the variant doc,
 | Doc | Purpose |
 | --- | --- |
 | [engineering.md](engineering.md) | Nets, git, review, adversary, PHP conventions, definition of done |
-| [harness.md](harness.md) | OpenCode tree, Boost vs process, parity, overlay, retro |
+| [harness.md](harness.md) | OpenCode tree, Boost vs process, overlay, retro |
 | [design.md](design.md) | Visual loop, mock store, screenshots |
 | [quality.md](quality.md) | Named gates and product-code include lists |
 | [variants/inertia-monolith.md](variants/inertia-monolith.md) | Laravel + Inertia + React |

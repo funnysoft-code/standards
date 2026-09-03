@@ -27,7 +27,6 @@ need .opencode/skills/creative-mode/SKILL.md
 need .opencode/skills/linear/SKILL.md
 need .opencode/agent/adversary.md
 need opencode.json
-need scripts/harness-parity.sh
 need scripts/boost-sync-opencode-skills.sh
 need scripts/lint-commit-msg.sh
 need lefthook.yml

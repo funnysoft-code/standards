@@ -9,15 +9,6 @@ commit-msg:
 pre-commit:
   parallel: true
   jobs:
-    - name: harness-parity
-      glob:
-        - ".opencode/**"
-        - "opencode.json"
-        - "AGENTS.md"
-        - "boost.json"
-        - "scripts/harness-parity.sh"
-        - "lefthook.yml"
-      run: scripts/harness-parity.sh
     - name: php
       glob: ["app/**", "tests/**", "routes/**", "config/**", "database/**", "scripts/php-gate.sh"]
       run: scripts/php-gate.sh all
