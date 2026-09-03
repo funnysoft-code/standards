@@ -55,7 +55,7 @@ Every adversary dispatch passes an explicit model pin. Do not inherit the parent
 
 | Harness | Default | Max |
 | --- | --- | --- |
-| OpenCode | `grok-4.6` high | `grok-4.6` extra high |
+| OpenCode | `xai/grok-4.6` | `xai/grok-4.6` extra high |
 
 A max streak on one issue stops after 3 dispatches. Next review uses the default pin. Owner can start a new streak of 3. Pins live in `.opencode/agent/adversary.md`.
 

@@ -36,8 +36,8 @@ Every adversary dispatch must pass an explicit model pin. Do not omit the pin. D
 
 OpenCode is the only process harness. Dispatch the `adversary` subagent.
 
-- Default: `grok-4.6` high. Ordinary __TEAM__ work, including reviews that have some complexity.
-- Max: `grok-4.6` extra high. Only when the owner asks for max, or the review is really complex or extensive. Triggers live in `.opencode/agent/adversary.md`.
+- Default: `xai/grok-4.6`. Ordinary __TEAM__ work, including reviews that have some complexity. Cursor plugin alias: `cursor/grok-4.6`.
+- Max: `xai/grok-4.6` extra high. Only when the owner asks for max, or the review is really complex or extensive. Triggers live in `.opencode/agent/adversary.md`.
 
 A max streak on one issue stops after 3 dispatches. The next review uses the default pin, even if the owner said to own the loop. The owner can ask for another max pass, which starts a new streak of 3. A new issue resets the count.
 
