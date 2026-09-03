@@ -1,8 +1,0 @@
-# Project Grok Build config. Only [mcp_servers] applies here.
-
-[mcp_servers.laravel-boost]
-command = "php"
-args = ["__BOOST_ARTISAN__", "boost:mcp"]
-
-[mcp_servers.mobbin]
-url = "https://api.mobbin.com/mcp"

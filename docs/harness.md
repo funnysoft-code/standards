@@ -1,41 +1,45 @@
 # Harness
 
-Cursor, Grok Build, Codex, and Claude are laptop process harnesses. Prefer whichever the human opened.
+OpenCode is the only laptop process harness. Prefer it. Do not add Cursor, Grok Build, Codex, or Claude trees.
 
 Laravel Boost is the Laravel agent layer, not the process harness.
 
-## Four trees
+## One tree
 
-Each harness owns a native tree. Bodies are copied. Do not symlink. `scripts/harness-parity.sh` fails if a name is missing or a symlink remains. It does not merge bodies.
+OpenCode owns the native tree. Bodies are copied. Do not symlink. `scripts/harness-parity.sh` fails if OpenCode artifacts are missing, a retired tree remains, or a symlink is used. It does not merge bodies.
 
-| Tree | Role |
-| --- | --- |
-| `.cursor/` | Rules, skills, adversary agent, authored MCP |
-| `.grok/` | Rules, skills, adversary, MCP toml |
-| `.agents/` + `.codex/` | Codex rules/skills (Codex has no rules directory) and MCP |
-| `.claude/` | Claude Code rules/skills. No root `CLAUDE.md`. |
+| Artifact | Path | Job |
+| --- | --- | --- |
+| Always-on overlay | `.opencode/rules/*.md` via `opencode.json` `instructions` | Loaded every session |
+| Skills | `.opencode/skills/<name>/SKILL.md` | On-demand procedures |
+| Adversary | `.opencode/agent/adversary.md` | Subagent. Pin a model on dispatch |
+| Commands | `.opencode/command/*.md` | Slash commands when a product adds them |
+| MCP | `opencode.json` | Boost + Mobbin |
+| Product brief | `AGENTS.md` | Short. Points at the playbook pin and product docs |
 
-Creative-mode is a requestable Cursor rule and a skill in the other trees. Grok would always-load it if it lived in `.grok/rules`.
+Creative-mode is a skill. Do not put it in `.opencode/rules` or OpenCode would always-load it.
+
+There is no root `CLAUDE.md`.
 
 ## Boost vs process
 
 Boost lives in the Laravel app tree. Repo root on an Inertia monolith (`__BOOST_ARTISAN__` = `artisan`). `services/api` on an API (`__BOOST_ARTISAN__` = `services/api/artisan`). Stamp replaces `__BOOST_ARTISAN__` in overlay files only.
 
-Boost must not overwrite root `AGENTS.md`. Commit `boost.json` and generated Boost skills. `funnysoft/boost-guidelines` ships API lines and Inertia+React lines. Inertia lines render only when those packages are installed.
+Boost must not overwrite root `AGENTS.md`. Commit `boost.json`. Generated Boost skills, when kept, live under `.opencode/skills`. `funnysoft/boost-guidelines` ships API lines and Inertia+React lines. Inertia lines render only when those packages are installed.
 
-Authored MCP: `.cursor/mcp.json`, `.grok/config.toml`, `.codex/config.toml`. Boost + Mobbin. Do not set `cwd` in the Cursor file.
+Authored MCP lives in `opencode.json`. Boost + Mobbin. Do not set a working directory on the Boost command; run it from the product root.
 
 ## Rule vs skill vs hook
 
 Keep the harness thin.
 
-- Rule: true whenever it applies. Always-on may have a session off-switch. Requestable starts on a phrase.
+- Rule: true whenever it applies. Always-on via `.opencode/rules`. Requestable starts on a phrase and lives as a skill.
 - Skill: a procedure.
 - Hook: a hard block the agent cannot skip. Add one only when a rule keeps failing.
 
 Do not add a skill for a one-line reminder. Do not add a hook for a style lint already covers. Do not add a rule that is true only inside one package.
 
-Stack rules wait for their code. Do not copy personal Cursor rules unless they are true for every engineer.
+Stack rules wait for their code. Do not copy personal OpenCode config unless it is true for every engineer.
 
 ## Always-on overlay
 
@@ -63,8 +67,8 @@ Product issues are tracer-bullet vertical slices (schema + HTTP + UI + tests whe
 
 A miss or owner correction runs the retro skill. The smallest durable fix lands on the same branch and PR. Do not write a long postmortem. The harness change is the record. Comment the miss on the Linear issue.
 
-Do not auto-run grilling. Pause and ask the owner to invoke it. Leave Plan mode off during a grill.
+Do not auto-run grilling. Pause and ask the owner to invoke it. Do not switch to the plan agent during a grill.
 
 ## Out of this playbook
 
-Cursor Cloud and Sail are out. Laptop API is Herd. Do not add Dockerfile/Sail wrappers unless a later issue names Cloud Agents.
+Cursor Cloud and Sail are out. Laptop API is Herd. Do not add Dockerfile/Sail wrappers unless a later issue names Cloud Agents. Do not restore a second process harness.

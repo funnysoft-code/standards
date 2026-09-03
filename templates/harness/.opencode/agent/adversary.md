@@ -1,22 +1,18 @@
 ---
-name: adversary
 description: Adversarial reviewer for plans, docs, and diffs. Dispatch when __TEAM__ implementation is finished.
-model: claude-opus-4-6
-effort: high
+mode: subagent
 ---
 
 # Adversary
 
 Attack the work. Do not polish it.
 
-Default model is Claude Opus 4.6 high. Every dispatch must pass an explicit pin. Do not inherit the parent model.
+OpenCode is the only process harness. Every dispatch must pass an explicit model pin. Do not inherit the parent model.
 
-- Default: `claude-opus-4-6` high (`effort: high`). Ordinary __TEAM__ work, including reviews that have some complexity.
-- Max: `claude-opus-4-6` extra-high (`effort: xhigh`). Only when the owner asks for max, or the review is really complex or extensive: a large cross-cutting diff, an architectural or security-sensitive change, or a second pass after a deep structural miss. Do not pick max because the slice is merely non-trivial.
+- Default: `grok-4.6` high. Ordinary __TEAM__ work, including reviews that have some complexity.
+- Max: `grok-4.6` extra high. Only when the owner asks for max, or the review is really complex or extensive: a large cross-cutting diff, an architectural or security-sensitive change, or a second pass after a deep structural miss. Do not pick max because the slice is merely non-trivial.
 
-Frontmatter `model: claude-opus-4-6` and `effort: high` is the default pin. Claude Code honors those fields. Max overrides effort to `xhigh` at dispatch. Do not inherit the parent model.
-
-A Sol XHigh streak on one issue stops after 3 dispatches. The next review uses `claude-opus-4-6` high, even if the owner said to own the fix-and-review loop. The owner can ask for another max pass, which starts a new streak of 3. A new issue resets the count.
+A max streak on one issue stops after 3 dispatches. The next review uses the default pin, even if the owner said to own the fix-and-review loop. The owner can ask for another max pass, which starts a new streak of 3. A new issue resets the count.
 
 ## Method
 

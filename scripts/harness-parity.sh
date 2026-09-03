@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail if a native tree is missing a process name, or still uses a symlink.
+# Fail if OpenCode artifacts are missing from templates/harness, old trees remain, or a symlink is used.
 # Usage: scripts/harness-parity.sh
 # Checks templates/harness (this repo). Product copies live in templates/scripts.
 set -euo pipefail
@@ -23,46 +23,45 @@ need_real_dir() {
     [[ -d "$path" && ! -L "$path" ]] || fail "missing real directory ${path}"
 }
 
-need_real_file "${prefix}/.cursor/mcp.json"
-need_real_file "${prefix}/.grok/config.toml"
-need_real_file "${prefix}/.codex/config.toml"
+forbid_tree() {
+    local path="$1"
+    if [[ -e "$path" ]]; then
+        fail "retired harness tree still present: ${path}"
+    fi
+}
+
+need_real_file "${prefix}/opencode.json"
+need_real_dir "${prefix}/.opencode"
+need_real_dir "${prefix}/.opencode/rules"
+need_real_dir "${prefix}/.opencode/skills"
+need_real_file "${prefix}/.opencode/agent/adversary.md"
+need_real_file "${prefix}/.opencode/skills/creative-mode/SKILL.md"
 
 while IFS= read -r skill; do
     [[ -n "$skill" ]] || continue
-    need_real_dir "${prefix}/.grok/skills/${skill}"
-    need_real_file "${prefix}/.grok/skills/${skill}/SKILL.md"
-    need_real_dir "${prefix}/.agents/skills/${skill}"
-    need_real_file "${prefix}/.agents/skills/${skill}/SKILL.md"
-    need_real_dir "${prefix}/.claude/skills/${skill}"
-    need_real_file "${prefix}/.claude/skills/${skill}/SKILL.md"
-done < <(find "${prefix}/.cursor/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+    need_real_dir "${prefix}/.opencode/skills/${skill}"
+    need_real_file "${prefix}/.opencode/skills/${skill}/SKILL.md"
+done < <(find "${prefix}/.opencode/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
 
 while IFS= read -r rule; do
     [[ -n "$rule" ]] || continue
-    [[ "$rule" == "creative-mode" ]] && continue
-    need_real_file "${prefix}/.grok/rules/${rule}.md"
-    need_real_file "${prefix}/.agents/rules/${rule}.md"
-    need_real_file "${prefix}/.claude/rules/${rule}.md"
-done < <(find "${prefix}/.cursor/rules" -maxdepth 1 -name '*.mdc' -exec basename {} .mdc \; | sort)
+    need_real_file "${prefix}/.opencode/rules/${rule}"
+done < <(find "${prefix}/.opencode/rules" -maxdepth 1 -name '*.md' -exec basename {} \; | sort)
 
-need_real_file "${prefix}/.grok/skills/creative-mode/SKILL.md"
-need_real_file "${prefix}/.agents/skills/creative-mode/SKILL.md"
-need_real_file "${prefix}/.claude/skills/creative-mode/SKILL.md"
-need_real_file "${prefix}/.grok/agents/adversary.md"
-need_real_file "${prefix}/.cursor/agents/adversary.md"
-need_real_file "${prefix}/.claude/agents/adversary.md"
-need_real_file "${prefix}/.agents/skills/adversary/SKILL.md"
+for retired in .cursor .grok .agents .codex .claude; do
+    forbid_tree "${prefix}/${retired}"
+done
 
-if leftover="$(find "${prefix}/.cursor" "${prefix}/.grok" "${prefix}/.agents" "${prefix}/.codex" "${prefix}/.claude" -type l -print)"; then
+if leftover="$(find "${prefix}/.opencode" -type l -print)"; then
     if [[ -n "$leftover" ]]; then
         fail "symlink leftover:${leftover//$'\n'/ }"
     fi
 fi
 
 for server in laravel-boost mobbin; do
-    grep -q "$server" "${prefix}/.cursor/mcp.json" || fail "${prefix}/.cursor/mcp.json missing ${server}"
-    grep -q "mcp_servers.${server}" "${prefix}/.grok/config.toml" || fail "${prefix}/.grok/config.toml missing ${server}"
-    grep -q "mcp_servers.${server}" "${prefix}/.codex/config.toml" || fail "${prefix}/.codex/config.toml missing ${server}"
+    grep -q "$server" "${prefix}/opencode.json" || fail "${prefix}/opencode.json missing ${server}"
 done
+
+grep -q '"instructions"' "${prefix}/opencode.json" || fail "${prefix}/opencode.json missing instructions glob"
 
 echo "harness-parity: ok"

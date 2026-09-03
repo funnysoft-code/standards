@@ -2,7 +2,7 @@
 
 Working agreement for nets, git, review, PHP conventions, and what done means.
 
-Gates, include lists, and how to run them: [quality.md](quality.md). Harness trees: [harness.md](harness.md).
+Gates, include lists, and how to run them: [quality.md](quality.md). Harness: [harness.md](harness.md).
 
 ## Quality nets
 
@@ -55,12 +55,9 @@ Every adversary dispatch passes an explicit model pin. Do not inherit the parent
 
 | Harness | Default | Max |
 | --- | --- | --- |
-| Cursor | `cursor-grok-4.6-high-fast` | `gpt-5.6-sol-xhigh` |
-| Grok Build | `grok-4.6` high | `grok-4.6` extra high |
-| Codex | `gpt-5.6-sol` | `gpt-5.6-sol` extra-high reasoning |
-| Claude | named in `.claude/agents/adversary.md` (high vs extra-high split, same triggers as Cursor max) | same file |
+| OpenCode | `grok-4.6` high | `grok-4.6` extra high |
 
-A Sol XHigh streak on one issue stops after 3 dispatches. Next review uses that harness default. Owner can start a new streak of 3.
+A max streak on one issue stops after 3 dispatches. Next review uses the default pin. Owner can start a new streak of 3. Pins live in `.opencode/agent/adversary.md`.
 
 Verdict: `approve`, `revise`, or `block`. Findings Critical, High, Medium, Low. `approve` with leftover Medium or higher is not a pass. Fix Critical, High, and Medium, then re-dispatch on the new SHA. The recorded `approve` that opens the PR may list Low only. No compliments.
 

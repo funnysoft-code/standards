@@ -11,11 +11,8 @@ pre-commit:
   jobs:
     - name: harness-parity
       glob:
-        - ".cursor/**"
-        - ".grok/**"
-        - ".codex/**"
-        - ".agents/**"
-        - ".claude/**"
+        - ".opencode/**"
+        - "opencode.json"
         - "AGENTS.md"
         - "boost.json"
         - "scripts/harness-parity.sh"

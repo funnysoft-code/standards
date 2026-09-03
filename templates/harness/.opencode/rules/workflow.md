@@ -1,5 +1,6 @@
 ---
 description: Linear-first workflow, git conventions, review, and harness growth.
+alwaysApply: true
 ---
 
 # Workflow
@@ -33,27 +34,12 @@ Finished __TEAM__ work needs an adversary `approve` on a recorded SHA before the
 
 Every adversary dispatch must pass an explicit model pin. Do not omit the pin. Do not inherit the parent model. Do not substitute a pin that is not listed here.
 
-Cursor:
-
-- Default: `cursor-grok-4.6-high-fast`. Ordinary __TEAM__ work, including reviews that have some complexity.
-- Max: `gpt-5.6-sol-xhigh`. Only when the owner asks for max, or the review is really complex or extensive. Triggers live in `.cursor/agents/adversary.md`.
-
-Grok Build:
+OpenCode is the only process harness. Dispatch the `adversary` subagent.
 
 - Default: `grok-4.6` high. Ordinary __TEAM__ work, including reviews that have some complexity.
-- Max: `grok-4.6` extra high. Same max triggers as Cursor.
+- Max: `grok-4.6` extra high. Only when the owner asks for max, or the review is really complex or extensive. Triggers live in `.opencode/agent/adversary.md`.
 
-Codex:
-
-- Default: `gpt-5.6-sol`. Ordinary __TEAM__ work, including reviews that have some complexity.
-- Max: `gpt-5.6-sol` with extra-high reasoning. Same max triggers as Cursor.
-
-Claude:
-
-- Default: `claude-opus-4-6` high. Ordinary __TEAM__ work, including reviews that have some complexity.
-- Max: `claude-opus-4-6` extra-high. Same max triggers as Cursor. Pins live in `.claude/agents/adversary.md`.
-
-A Sol XHigh streak on one issue stops after 3 dispatches. The next review uses that harness default, even if the owner said to own the loop. The owner can ask for another max pass, which starts a new streak of 3. A new issue resets the count.
+A max streak on one issue stops after 3 dispatches. The next review uses the default pin, even if the owner said to own the loop. The owner can ask for another max pass, which starts a new streak of 3. A new issue resets the count.
 
 The verdict names the SHA. Findings are Critical, High, Medium, or Low. `approve` with leftover Medium or higher findings is not a pass. Fix every Critical, High, and Medium finding, then re-dispatch on the new SHA. The recorded `approve` that opens the PR may list Low findings only. Linear comments are for owner leans and findings that change the work, not process status.
 
@@ -79,8 +65,8 @@ After any owner correction or discovered miss, run the `retro` skill.
 
 Keep the harness thin. Prefer editing an existing rule or skill over adding a new one.
 
-Laptop API is Herd. Do not use Sail. Cursor Cloud is out.
+Laptop API is Herd. Do not use Sail. Cursor Cloud is out. Do not add Cursor, Grok Build, Codex, or Claude trees.
 
-Loose idea: do not auto-run grilling. Pause and ask the owner to invoke it. Leave Plan mode off during a grill. Grill is inquiry; Plan mode rushes a plan.
+Loose idea: do not auto-run grilling. Pause and ask the owner to invoke it. Do not switch to the plan agent during a grill. Grill is inquiry; plan rushes a plan.
 
 Non-trivial change: plan first, then execute in the same session.

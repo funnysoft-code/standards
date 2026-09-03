@@ -12,7 +12,7 @@ Keep them short. A reader decides in two minutes whether it affects them.
 
 | Number | Title | Status | Date |
 | --- | --- | --- | --- |
-| | None yet. | | |
+| [0001](0001-opencode-only-harness.md) | OpenCode is the only process harness | Proposed | 2026-09-02 |
 
 Status values: Proposed, Accepted, Superseded.
 

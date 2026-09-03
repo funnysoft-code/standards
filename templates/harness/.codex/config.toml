@@ -1,9 +1,0 @@
-# Project Codex MCP. Boost and Mobbin for this repo.
-
-[mcp_servers.laravel-boost]
-command = "php"
-args = ["__BOOST_ARTISAN__", "boost:mcp"]
-
-[mcp_servers.mobbin]
-command = "npx"
-args = ["-y", "mcp-remote", "https://api.mobbin.com/mcp"]
