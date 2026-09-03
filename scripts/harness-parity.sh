@@ -52,7 +52,7 @@ for retired in .cursor .grok .agents .codex .claude; do
     forbid_tree "${prefix}/${retired}"
 done
 
-if leftover="$(find "${prefix}/.opencode" -type l -print)"; then
+if leftover="$(find "${prefix}/.opencode" \( -name node_modules -o -name .git \) -prune -o -type l -print)"; then
     if [[ -n "$leftover" ]]; then
         fail "symlink leftover:${leftover//$'\n'/ }"
     fi
