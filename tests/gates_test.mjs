@@ -33,7 +33,7 @@ fi
 if [[ "$name" == openapi-typescript ]]; then
   while [[ $# -gt 0 ]]; do if [[ "$1" == -o ]]; then printf '%s' "\${CLIENT_OUTPUT:-client}" > "$2"; break; fi; shift; done
 fi
-if [[ "$name" == oxfmt && "$*" == *--stdin-filepath* ]]; then cat; fi
+if [[ ( "$name" == oxfmt || "$name" == vp ) && "$*" == *--stdin-filepath* ]]; then cat; fi
 `;
 const realPhp = spawnSync('which', ['php'], { encoding: 'utf8' }).stdout.trim();
 try {
@@ -158,6 +158,13 @@ try {
       try { assert.notEqual(run('php-gate.sh', 'pint').status, 0); }
       finally { fs.renameSync(file + '.off', file); }
     });
+    if (!api) check('inertia-monolith: Boost already uses root, no Cloud tree', () => {
+      put(path.join(app, '.opencode/skills/pest-testing/SKILL.md'), 'Pest skill\n');
+      assert.ok(!fs.existsSync(path.join(app, '.ai')));
+      const r = run('boost-sync-opencode-skills.sh');
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(fs.readFileSync(path.join(app, '.opencode/skills/pest-testing/SKILL.md'), 'utf8'), 'Pest skill\n');
+    });
     check(`${variant}: Boost real root files, repeatable, brief preserved`, () => {
       put(path.join(app, 'AGENTS.md'), 'Short product brief\n');
       put(path.join(phpRoot, '.ai/skills/cloud-deploy/SKILL.md'), 'Cloud skill\n');
@@ -168,6 +175,26 @@ try {
       assert.equal(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8'), 'Short product brief\n');
       assert.ok(fs.existsSync(path.join(app, '.opencode/skills/grilling/SKILL.md')));
       assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
+    });
+    check(`${variant}: Boost missing formatter, error propagation and vp fallback`, () => {
+      const tools = ['oxfmt', 'vp'].map((name) => path.join(app, 'node_modules/.bin', name));
+      const skill = path.join(app, '.opencode/skills/cloud-deploy/SKILL.md');
+      const before = fs.readFileSync(skill);
+      for (const file of tools) fs.renameSync(file, file + '.off');
+      try {
+        const missing = run('boost-sync-opencode-skills.sh');
+        assert.notEqual(missing.status, 0);
+        assert.match(missing.stderr, /formatter missing/);
+        assert.deepEqual(fs.readFileSync(skill), before);
+      } finally { for (const file of tools) fs.renameSync(file + '.off', file); }
+      assert.equal(run('boost-sync-opencode-skills.sh', '', { FAIL_MATCH: 'oxfmt' }).status, 37);
+      assert.deepEqual(fs.readFileSync(skill), before);
+      fs.renameSync(tools[0], tools[0] + '.off');
+      try {
+        const r = run('boost-sync-opencode-skills.sh');
+        assert.equal(r.status, 0, r.stderr);
+        assert.match(r.trace, /\|vp\|fmt --stdin-filepath/);
+      } finally { fs.renameSync(tools[0] + '.off', tools[0]); }
     });
     check(`${variant}: invalid Boost skill fails before replacement`, () => {
       const invalid = path.join(phpRoot, '.ai/skills/invalid');

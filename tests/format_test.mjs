@@ -49,6 +49,118 @@ try {
     console.log(`ok: ${variant} formatted assets, receipt semantics, dependency-free stamp parity`);
   }
 
+  for (const variant of ['inertia-monolith', 'api-next']) {
+    const app = path.join(tmp, 'boost-' + variant);
+    applyExport({ exportRoot: bundle, target: app, variant, team: 'F7T', teamSlug: 'f7t', productBlurb: 'Fixture' });
+    const phpRoot = variant === 'api-next' ? path.join(app, 'services/api') : app;
+    const generated = path.join(phpRoot, '.opencode/skills');
+    const destination = path.join(app, '.opencode/skills');
+    const brief = 'Short product brief\n';
+    put(path.join(app, 'AGENTS.md'), brief);
+    put(path.join(app, 'boost.json'), '{"agents":["opencode"],"skills":["pest-testing"]}');
+    put(path.join(phpRoot, 'boost.json'), '{"agents":["opencode"],"skills":["pest-testing"]}');
+    if (phpRoot !== app) put(path.join(phpRoot, 'AGENTS.md'), 'API instructions\n\n| Gate | Tool |\n| --- | --- |\n| PHP | Pest |\n');
+    put(path.join(generated, 'pest-testing/SKILL.md'), '# Pest\n\n| Tool | Command |\n| --- | --- |\n| Pest | `pest` |\n');
+    put(path.join(app, 'reference-source/example.md'), '# Reference\n\nUse *Pest*.\n');
+    fs.symlinkSync(path.join(app, 'reference-source'), path.join(generated, 'pest-testing/references'));
+    put(path.join(app, 'untouched-policy.md'), 'Keep  *authored policy*  spacing.\n');
+    const policy = fs.readFileSync(path.join(app, 'untouched-policy.md'));
+    const selectedFormatter = variant === 'inertia-monolith' && process.argv[3] ? path.resolve(process.argv[3]) : formatter;
+    const toolName = selectedFormatter === formatter ? 'oxfmt' : 'vp';
+    const executable = path.join(app, 'node_modules/.bin', toolName);
+    fs.mkdirSync(path.dirname(executable), { recursive: true });
+    fs.symlinkSync(selectedFormatter, executable);
+    const invoke = () => spawnSync('bash', [path.join(app, 'scripts/boost-sync-opencode-skills.sh')], { cwd: tmp, encoding: 'utf8' });
+    function snapshot() {
+      function walk(dir) {
+        return fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap((entry) => {
+          if (entry.name === 'node_modules') return [];
+          const file = path.join(dir, entry.name);
+          return entry.isDirectory() ? walk(file) : [[path.relative(app, file), entry.isSymbolicLink() ? `link:${fs.readlinkSync(file)}` : fs.readFileSync(file, 'base64')]];
+        });
+      }
+      return walk(app);
+    }
+    const before = snapshot();
+    fs.renameSync(executable, executable + '.off');
+    let result = invoke();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /formatter missing/);
+    assert.deepEqual(snapshot(), before);
+    fs.renameSync(executable + '.off', executable);
+    // A malformed final metadata file must not partially update earlier skills.
+    const boost = path.join(phpRoot, 'boost.json');
+    const validBoost = fs.readFileSync(boost);
+    fs.writeFileSync(boost, '{ invalid json');
+    const invalid = snapshot();
+    result = invoke();
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(snapshot(), invalid);
+    fs.writeFileSync(boost, validBoost);
+    // No .ai tree: Inertia's generated skills already occupy the destination.
+    assert.ok(!fs.existsSync(path.join(phpRoot, '.ai')));
+    result = invoke();
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8'), brief);
+    assert.deepEqual(fs.readFileSync(path.join(app, 'untouched-policy.md')), policy);
+    assert.ok(!fs.lstatSync(path.join(generated, 'pest-testing/references')).isSymbolicLink());
+    assert.ok(!fs.lstatSync(path.join(destination, 'pest-testing/references')).isSymbolicLink());
+    const paths = [destination, generated, path.join(app, 'AGENTS.md'), path.join(app, 'boost.json'), boost];
+    if (phpRoot !== app) paths.push(path.join(phpRoot, 'AGENTS.md'));
+    run(selectedFormatter, [...(toolName === 'vp' ? ['fmt'] : []), '--check', ...paths], { cwd: app });
+    const once = snapshot();
+    assert.equal(invoke().status, 0);
+    assert.deepEqual(snapshot(), once);
+    // Boost can append guidelines to the authored root brief.
+    fs.appendFileSync(path.join(app, 'AGENTS.md'), '\n<laravel-boost-guidelines>\n\nUse *Boost*.\n\n</laravel-boost-guidelines>\n');
+    result = invoke();
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8').startsWith(brief));
+    assert.match(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8'), /laravel-boost-guidelines/);
+    // Cloud precedence is retained and its app-local source is formatted too.
+    const cloud = path.join(phpRoot, '.ai/skills/pest-testing');
+    put(path.join(cloud, 'SKILL.md'), '# Cloud override\n\nUse *Cloud*.\n');
+    result = invoke();
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.readFileSync(path.join(destination, 'pest-testing/SKILL.md'), 'utf8'), '# Cloud override\n\nUse _Cloud_.\n');
+    run(selectedFormatter, [...(toolName === 'vp' ? ['fmt'] : []), '--check', cloud, ...paths], { cwd: app });
+    const invalidDirectory = path.join(phpRoot, '.ai/skills/invalid');
+    fs.mkdirSync(invalidDirectory);
+    const invalidSet = snapshot();
+    result = invoke();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /SKILL.md missing/);
+    assert.deepEqual(snapshot(), invalidSet);
+    fs.rmdirSync(invalidDirectory);
+    const broken = path.join(generated, 'broken-skill');
+    fs.symlinkSync(path.join(app, 'missing-skill'), broken);
+    const brokenSet = snapshot();
+    result = invoke();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /SKILL.md missing/);
+    assert.deepEqual(snapshot(), brokenSet);
+    fs.unlinkSync(broken);
+    // Root symlinks are forbidden even though individual skills can be linked.
+    fs.renameSync(destination, destination + '.real');
+    fs.symlinkSync(destination + '.real', destination);
+    const linkedRoot = snapshot();
+    result = invoke();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /symlink root or parent/);
+    assert.deepEqual(snapshot(), linkedRoot);
+    fs.unlinkSync(destination);
+    fs.renameSync(destination + '.real', destination);
+    // No installed/generated skills must not turn an empty sync into a pass.
+    fs.rmSync(destination, { recursive: true });
+    if (generated !== destination) fs.rmSync(generated, { recursive: true });
+    fs.rmSync(path.join(phpRoot, '.ai'), { recursive: true });
+    result = invoke();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /generated skill set is empty/);
+    assert.ok(!fs.existsSync(destination));
+    console.log(`ok: ${variant} real ${toolName} Boost formatting, same-root sync, nested links, preflight preservation and empty-set rejection`);
+  }
+
   const app = path.join(tmp, 'api-next');
   const bin = path.join(app, 'fixture-bin');
   const schema = path.join(app, 'packages/api-client/openapi.json');
