@@ -30,9 +30,21 @@ try {
     fail("Playwright collection failed; run playwright test --list for details");
   const report = JSON.parse(result.stdout);
   if (report.errors?.length) fail("Playwright collection reported errors");
+  const e2e = path.join(fs.realpathSync(root), "e2e");
   const declared = new Set();
   function collect(suite) {
     for (const spec of suite.specs ?? []) {
+      // Dependency projects bypass Playwright's CLI file filter. Resolve reporter
+      // paths and symlinks before checking directory membership, not a prefix.
+      const file = fs.realpathSync(path.resolve(report.config.rootDir, spec.file));
+      const relative = path.relative(e2e, file);
+      if (
+        !relative ||
+        relative === ".." ||
+        relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative)
+      )
+        continue;
       if (!spec.tests?.some((test) => test.expectedStatus !== "skipped")) continue;
       for (const tag of spec.tags ?? []) declared.add(tag.startsWith("@") ? tag : `@${tag}`);
     }

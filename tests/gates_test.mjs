@@ -338,6 +338,49 @@ fi
       put(registry, 'workflows:\n  - id: login\n    tag: "@login"\n  - id: login\n    tag: "@login"\n');
       assert.notEqual(invoke().status, 0);
     });
+    check('api-next: dependency setup tags stay outside the e2e registry', () => {
+      const config = path.join(app, 'playwright.config.ts');
+      const spec = path.join(app, 'e2e/account.spec.ts');
+      const setup = path.join(app, 'tests/auth.setup.ts');
+      put(path.join(app, 'tests/workflows.yml'), 'workflows:\n  - id: login\n    tag: "@login"\n');
+      put(setup, 'import { test } from "@playwright/test"; test("@login setup", () => { throw new Error("must not execute"); });');
+      put(config, `export default {
+        testDir: './e2e',
+        projects: [
+          { name: 'setup', testDir: './tests', testMatch: '**/*.setup.ts' },
+          { name: 'journeys', testMatch: '**/*.spec.ts', dependencies: ['setup'] },
+        ],
+      };`);
+      const invoke = () => spawnSync('bun', [path.join(app, 'scripts/check-workflows.mjs')], { cwd: tmp, encoding: 'utf8' });
+      const specPut = (source) => put(spec, 'import { test } from "@playwright/test";\n' + source);
+      specPut('test("unrelated", () => {});');
+      // Prove that the real reporter includes the outside dependency despite e2e/ filtering.
+      const listed = spawnSync('node', [path.join(playwright, 'cli.js'), 'test', '--list', '--reporter=json', 'e2e/'], { cwd: app, encoding: 'utf8' });
+      assert.equal(listed.status, 0, listed.stderr);
+      assert.match(listed.stdout, /auth\.setup\.ts/);
+      let result = invoke();
+      assert.notEqual(result.status, 0, 'an outside dependency tag must not satisfy an e2e journey');
+      assert.match(result.stderr, /missing Playwright tag @login/);
+      specPut('test.skip("@login", () => {}); test("unrelated", () => {});');
+      assert.notEqual(invoke().status, 0);
+      specPut('test("@login actual journey", () => {});');
+      result = invoke();
+      assert.equal(result.status, 0, result.stderr);
+      // A sibling sharing the e2e prefix is still outside the directory.
+      put(path.join(app, 'e2e-other/auth.setup.ts'), fs.readFileSync(setup, 'utf8'));
+      put(config, fs.readFileSync(config, 'utf8').replace("testDir: './tests'", "testDir: './e2e-other'"));
+      specPut('test("unrelated", () => {});');
+      result = invoke();
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /missing Playwright tag @login/);
+      // A spec symlink cannot turn an outside file into an e2e journey.
+      const linked = path.join(app, 'e2e/linked.spec.ts');
+      fs.symlinkSync(setup, linked);
+      result = invoke();
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /missing Playwright tag @login/);
+      fs.unlinkSync(linked);
+    });
     put(path.join(app, 'packages/api-client/openapi.json'), 'schema');
     put(path.join(app, 'packages/api-client/src/schema.d.ts'), 'client');
     check('api-next: full schema chain, no artifact mutation', () => {

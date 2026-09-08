@@ -73,10 +73,13 @@ The generated `STANDARDS_MANIFEST.json` records `schemaVersion`, `standards`, `a
 Receipt JSON uses two-space object indentation and compact primitive arrays for
 the declared layouts. Stamping needs no formatter or installed product packages.
 Before advancing an export, run `bash tests/stamp_test.sh`,
-`bash tests/gates_test.sh`, and
+`bash tests/gates_test.sh /path/to/installed/@playwright/test`, and
 `node tests/format_test.mjs /path/to/installed/oxfmt` from this repository.
 The formatter fixture checks all three stamped layouts and receipt semantics,
 direct/export parity, and fresh API artifacts against the installed formatter.
+The gate fixtures require an already-installed `@playwright/test` package directory
+containing `cli.js` and its installed dependencies. The verified version is 1.62.1;
+the fixtures collect declarations without launching browsers or downloading tools.
 The current formatter compatibility target is oxfmt 0.65.0.
 
 Linear via the Linear CLI is the issue SSOT. Workspace `funnysoft`. Do not create or update Linear documents. Process and roadmap live in git. Parked options and the current lean live on the issue body.
