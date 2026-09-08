@@ -5,12 +5,12 @@ declare(strict_types=1);
 // Keep the application's suites, bootstrap, and environment. Replace only the
 // coverage source with the include list from docs/playbook/quality.md.
 $file = is_file('phpunit.xml') ? 'phpunit.xml' : 'phpunit.xml.dist';
-if (!is_file($file) || !class_exists(DOMDocument::class)) {
+if (! is_file($file) || ! class_exists(DOMDocument::class)) {
     fwrite(STDERR, "php-gate: phpunit.xml and the PHP DOM extension are required\n");
     exit(1);
 }
 $xml = new DOMDocument;
-if (!$xml->load($file, LIBXML_NONET)) {
+if (! $xml->load($file, LIBXML_NONET)) {
     exit(1);
 }
 $api = ($argv[2] ?? '') === 'services/api';
