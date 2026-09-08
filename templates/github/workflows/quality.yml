@@ -174,11 +174,13 @@ jobs:
           scripts/frontend-gate.sh schema
           scripts/frontend-gate.sh workflows
 
-      - name: Install browser and build application
+      - name: Install browser
+        if: matrix.gate == 'e2e' || ('__PHP_ROOT__' == 'services/api' && matrix.gate == 'test')
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Build application
         if: matrix.gate == 'e2e'
-        run: |
-          ./node_modules/.bin/playwright install --with-deps chromium
-          bun run build
+        run: bun run build
 
       - name: Frontend gate
         run: scripts/frontend-gate.sh ${{ matrix.gate }}

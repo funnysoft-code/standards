@@ -96,7 +96,13 @@ Laravel CI runs Playwright with `E2E_MODE=stub`. Application-owned Playwright
 configuration must start the app and stub external integrations in this mode.
 The workflow provides ephemeral PostgreSQL and Redis, builds the app, and
 installs Chromium. These CI service ports are not the local Herd defaults.
+API+Next installs Chromium separately in both `test` and `e2e` matrix jobs,
+because its Vitest integration suite also launches a browser. Only `e2e` builds
+the application before the gate.
 Next-only runs browser CI when a `playwright.config.*` file declares journeys.
+That job copies the committed, nonsecret root `.env.example` to `.env` before
+building. Keep required local build values such as `NEXT_PUBLIC_SITE_URL` in
+the example; CI must work without generation-time ignored files.
 An installed-tool or test failure is never converted into a pass.
 
 ### Manual deployment connections

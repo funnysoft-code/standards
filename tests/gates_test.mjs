@@ -38,6 +38,62 @@ if [[ ( "$name" == oxfmt || "$name" == vp ) && "$*" == *--stdin-filepath* ]]; th
 const realPhp = spawnSync('which', ['php'], { encoding: 'utf8' }).stdout.trim();
 const playwright = process.argv[2];
 assert.ok(playwright && fs.existsSync(path.join(playwright, 'cli.js')), 'pass an installed @playwright/test package directory as argument');
+// Evaluate only the condition vocabulary used by these quality jobs. Unknown
+// expressions must fail rather than silently skipping a prerequisite.
+function selected(condition, gate, hasConfig = true) {
+  if (!condition) return true;
+  if (condition === "hashFiles('playwright.config.*') != ''") return hasConfig;
+  const expression = condition.replace(/matrix\.gate/g, JSON.stringify(gate));
+  assert.match(expression, /^[\s'"a-zA-Z0-9/._=!&|()]+$/);
+  return Function(`return (${expression});`)();
+}
+function workflowFixture(job, app, gate, { omit = '', example = true, hasConfig = true } = {}) {
+  const checkout = fs.mkdtempSync(path.join(tmp, 'clean-checkout-'));
+  // Only declared checkout inputs, never a generated ignored .env or browser cache.
+  for (const file of ['STANDARDS_MANIFEST.json', 'scripts/frontend-gate.sh']) {
+    put(path.join(checkout, file), fs.readFileSync(path.join(app, file)), 0o755);
+  }
+  put(path.join(checkout, 'package.json'), '{"devDependencies":{"vitest":"*"}}');
+  put(path.join(checkout, 'lib/example.ts'), 'export const example = 1;');
+  if (example) put(path.join(checkout, '.env.example'), 'NEXT_PUBLIC_SITE_URL=http://localhost:3000\n');
+  const bin = path.join(checkout, 'bin');
+  const trace = path.join(checkout, 'trace');
+  put(trace, '');
+  const stub = `#!/usr/bin/env bash
+set -euo pipefail
+name="$(basename "$0")"
+printf '%s|%s|%s\\n' "$PWD" "$name" "$*" >> "$TRACE"
+if [[ "$name" == playwright && "$1" == install ]]; then
+  mkdir -p "$PLAYWRIGHT_BROWSERS_PATH"
+  touch "$PLAYWRIGHT_BROWSERS_PATH/chromium"
+elif [[ "$name" == vitest || ( "$name" == playwright && "$1" == test ) ]]; then
+  [[ -f "$PLAYWRIGHT_BROWSERS_PATH/chromium" ]] || { echo 'Chromium executable missing' >&2; exit 43; }
+elif [[ "$name $*" == 'bun run build' && "$STACK" == next-only ]]; then
+  node --env-file=.env -e 'new URL(process.env.NEXT_PUBLIC_SITE_URL)'
+fi
+`;
+  for (const name of ['bun']) put(path.join(bin, name), stub, 0o755);
+  for (const name of ['playwright', 'vitest']) put(path.join(checkout, 'node_modules/.bin', name), stub, 0o755);
+  const env = { ...process.env, ...job.env, CI: 'true', PATH: `${bin}:${process.env.PATH}`,
+    TRACE: trace, STACK: JSON.parse(fs.readFileSync(path.join(checkout, 'STANDARDS_MANIFEST.json'))).variant,
+    PLAYWRIGHT_BROWSERS_PATH: path.join(checkout, 'empty-browser-cache') };
+  delete env.NEXT_PUBLIC_SITE_URL;
+  delete env.F7T_CHROMIUM_EXECUTABLE;
+  delete env.SKIP_ENV_VALIDATION;
+  let result = { status: 0, stderr: '' };
+  for (const step of job.steps) {
+    // Composer/services and action setup are outside this JS prerequisite fixture.
+    if (!step.run || !/playwright install|bun run build|frontend-gate\.sh \$\{\{ matrix.gate \}\}|cp \.env.example/.test(step.run)) continue;
+    if (step.name === 'Prepare Laravel' || !selected(step.if, gate, hasConfig)) continue;
+    let command = step.run.replaceAll('${{ matrix.gate }}', gate);
+    if (omit) command = command.split('\n').filter((line) => !line.includes(omit)).join('\n');
+    result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', command], {
+      cwd: path.resolve(checkout, step['working-directory'] || '.'), encoding: 'utf8', env,
+    });
+    if (result.status !== 0) break;
+  }
+  return { ...result, trace: fs.readFileSync(trace, 'utf8'), checkout };
+}
 try {
   const bundle = path.join(tmp, 'export');
   createExport({ sourceRoot: root, target: bundle, release: 'v0.0.0-fixture', commit: '0'.repeat(40) });
@@ -109,6 +165,44 @@ try {
       const rule = fs.readFileSync(path.join(app, '.opencode/rules/ponytail.md'), 'utf8');
       assert.match(rule, /docs\/playbook\/quality.md/);
       assert.doesNotMatch(rule, /Pest and `scripts\/php-gate.sh`/);
+    });
+    check(`${variant}: clean checkout browser prerequisites`, () => {
+      const parsed = spawnSync('bun', ['-e', 'console.log(JSON.stringify(Bun.YAML.parse(await Bun.file(process.argv[1]).text())))', path.join(app, '.github/workflows/quality.yml')], { encoding: 'utf8' });
+      assert.equal(parsed.status, 0, parsed.stderr);
+      const jobs = JSON.parse(parsed.stdout).jobs;
+      if (variant === 'next-only') {
+        const job = jobs.browser;
+        assert.equal(job.env.E2E_MODE, 'stub');
+        const good = workflowFixture(job, app, 'e2e');
+        assert.equal(good.status, 0, good.stderr);
+        assert.match(good.trace, /bun\|run build/);
+        assert.match(good.trace, /playwright\|test/);
+        assert.equal(fs.readFileSync(path.join(good.checkout, '.env'), 'utf8'), 'NEXT_PUBLIC_SITE_URL=http://localhost:3000\n');
+        assert.notEqual(workflowFixture(job, app, 'e2e', { omit: 'cp .env.example' }).status, 0);
+        const missing = workflowFixture(job, app, 'e2e', { example: false });
+        assert.notEqual(missing.status, 0);
+        assert.doesNotMatch(missing.trace, /bun\|run build|playwright\|test/);
+        const disabled = workflowFixture(job, app, 'e2e', { hasConfig: false });
+        assert.equal(disabled.status, 0, disabled.stderr);
+        assert.equal(disabled.trace, '');
+      } else {
+        const job = jobs['frontend-gate'];
+        assert.equal(job.env.E2E_MODE, 'stub');
+        const install = job.steps.find((step) => step.run?.includes('playwright install'));
+        for (const gate of job.strategy.matrix.gate) {
+          assert.equal(selected(install.if, gate), gate === 'e2e' || (api && gate === 'test'), `${variant}/${gate}: browser installation selection`);
+        }
+        for (const gate of api ? ['test', 'e2e'] : ['e2e']) {
+          const good = workflowFixture(job, app, gate);
+          assert.equal(good.status, 0, good.stderr);
+          assert.match(good.trace, /playwright\|install --with-deps chromium/);
+          if (gate === 'test') assert.doesNotMatch(good.trace, /bun\|run build/);
+          else assert.match(good.trace, /bun\|run build/);
+          const missing = workflowFixture(job, app, gate, { omit: 'playwright install' });
+          assert.notEqual(missing.status, 0);
+          assert.match(missing.stderr, /Chromium executable missing/);
+        }
+      }
     });
     check(`${variant}: workflow YAML, pinned actions, hook boundary`, () => {
       const hooks = fs.readFileSync(path.join(app, 'lefthook.yml'), 'utf8');

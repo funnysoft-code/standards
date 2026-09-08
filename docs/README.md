@@ -80,6 +80,11 @@ direct/export parity, and fresh API artifacts against the installed formatter.
 The gate fixtures require an already-installed `@playwright/test` package directory
 containing `cli.js` and its installed dependencies. The verified version is 1.62.1;
 the fixtures collect declarations without launching browsers or downloading tools.
+Clean-checkout workflow fixtures execute the exported shell steps with traced
+JS tools and isolated browser-cache directories. They check browser installation
+per matrix job, root environment preparation before the Next build, and failures
+when either prerequisite is removed. These fixtures do not run full application
+builds or the Horizon integration suite.
 The current formatter compatibility target is oxfmt 0.65.0.
 
 Linear via the Linear CLI is the issue SSOT. Workspace `funnysoft`. Do not create or update Linear documents. Process and roadmap live in git. Parked options and the current lean live on the issue body.
