@@ -1,5 +1,5 @@
-# Merge-time net. Same checks as Lefthook, plus optional product e2e later.
-# Do not add a slop scan. Deploy lives in product deploy.yml (workflow_call this).
+# Laravel merge-time net. Browser interactions with external services are stubbed.
+# Hosting account connection is manual; deployment calls this workflow first.
 
 name: Quality
 
@@ -43,6 +43,32 @@ jobs:
     name: php-${{ matrix.gate }}
     runs-on: blacksmith-4vcpu-ubuntu-2404-arm
     timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: testing
+      DB_USERNAME: testing
+      DB_PASSWORD: testing
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      MAIL_MAILER: array
+      NIGHTWATCH_ENABLED: "false"
+      POSTHOG_ENABLED: "false"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: testing
+          POSTGRES_PASSWORD: testing
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
     strategy:
       fail-fast: false
       matrix:
@@ -57,10 +83,14 @@ jobs:
           extensions: pgsql, redis, mbstring, xml, ctype, tokenizer, json, bcmath
 
       - name: Install Composer dependencies
+        working-directory: __PHP_ROOT__
+        env:
+          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Prepare environment
         if: matrix.gate == 'phpstan' || matrix.gate == 'pest'
+        working-directory: __PHP_ROOT__
         run: |
           cp .env.example .env
           php artisan key:generate --force
@@ -71,11 +101,38 @@ jobs:
   frontend-gate:
     name: frontend-${{ matrix.gate }}
     runs-on: blacksmith-4vcpu-ubuntu-2404-arm
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      APP_ENV: testing
+      E2E_MODE: stub
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: testing
+      DB_USERNAME: testing
+      DB_PASSWORD: testing
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      MAIL_MAILER: array
+      NIGHTWATCH_ENABLED: "false"
+      POSTHOG_ENABLED: "false"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: testing
+          POSTGRES_PASSWORD: testing
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
     strategy:
       fail-fast: false
       matrix:
-        gate: [lint, typecheck, test, doctor]
+        gate: [lint, typecheck, test, doctor, e2e]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -85,6 +142,43 @@ jobs:
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
+
+      - uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
+        with:
+          php-version: "8.5"
+          coverage: none
+          extensions: pgsql, redis, mbstring, xml, ctype, tokenizer, json, bcmath
+
+      - name: Install API or Inertia dependencies
+        working-directory: __PHP_ROOT__
+        env:
+          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel
+        working-directory: __PHP_ROOT__
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          php artisan migrate --force
+
+      - name: Generate Inertia contracts for build and other checks
+        if: "'__PHP_ROOT__' == '.' && matrix.gate != 'typecheck'"
+        run: |
+          php artisan wayfinder:generate --with-form
+          php artisan typescript:transform
+
+      - name: Check API contracts and workflow registry
+        if: "'__PHP_ROOT__' == 'services/api'"
+        run: |
+          scripts/frontend-gate.sh schema
+          scripts/frontend-gate.sh workflows
+
+      - name: Install browser and build application
+        if: matrix.gate == 'e2e'
+        run: |
+          ./node_modules/.bin/playwright install --with-deps chromium
+          bun run build
 
       - name: Frontend gate
         run: scripts/frontend-gate.sh ${{ matrix.gate }}

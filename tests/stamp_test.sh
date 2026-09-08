@@ -5,6 +5,165 @@ tmp="$(mktemp -d)"
 keep="$(mktemp -d)"
 trap 'rm -rf "$tmp" "$keep"' EXIT
 
+# Export and direct stamping must consume one contract.
+node --input-type=module - "$root" "$keep" <<'NODE'
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+const [root, tmp] = process.argv.slice(2);
+const commit = '0123456789abcdef0123456789abcdef01234567';
+const identity = ['--release', 'v0.0.0-fixture', '--commit', commit];
+const product = ['--team', 'F7T', '--team-slug', 'f7t', '--product-blurb', 'Test $& App'];
+function run(script, args, error) {
+  const result = spawnSync('bash', [path.join(root, 'scripts', script), ...args], { encoding: 'utf8' });
+  if (error) {
+    assert.notEqual(result.status, 0, 'must reject ' + args.join(' '));
+    assert.match(result.stderr, error);
+  } else assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+const bundle = path.join(tmp, 'export');
+run('export.sh', ['--target', bundle, ...identity]);
+const manifest = JSON.parse(fs.readFileSync(path.join(bundle, 'manifest.json')));
+assert.equal(manifest.schemaVersion, 1);
+assert.deepEqual(manifest.standards, { release: 'v0.0.0-fixture', commit });
+assert.match(manifest.assetDigest, /^[a-f0-9]{64}$/);
+assert.deepEqual(Object.keys(manifest.variants).sort(), ['api-next', 'inertia-monolith', 'next-only']);
+for (const variant of Object.keys(manifest.variants)) {
+  const direct = path.join(tmp, variant);
+  const imported = path.join(tmp, variant + '-import');
+  fs.mkdirSync(path.join(direct, 'scripts'), { recursive: true });
+  const binary = Buffer.from([0, 255, ...Buffer.from('__TEAM__'), 128]);
+  fs.writeFileSync(path.join(direct, 'scripts/product.bin'), binary);
+  fs.writeFileSync(path.join(direct, 'scripts/product.sh'), '# __TEAM__\n');
+  fs.writeFileSync(path.join(direct, 'AGENTS.md'), 'Short product brief\n');
+  fs.chmodSync(path.join(direct, 'scripts/product.sh'), 0o640);
+  run('stamp.sh', ['--target', direct, '--variant', variant, ...identity, ...product]);
+  run('stamp.sh', ['--target', imported, '--variant', variant, '--from-export', bundle, '--expected-digest', manifest.assetDigest, ...product]);
+  assert.deepEqual(fs.readFileSync(path.join(direct, 'scripts/product.bin')), binary);
+  assert.equal(fs.readFileSync(path.join(direct, 'scripts/product.sh'), 'utf8'), '# __TEAM__\n');
+  assert.equal(fs.readFileSync(path.join(direct, 'AGENTS.md'), 'utf8'), 'Short product brief\n');
+  assert.equal(fs.statSync(path.join(direct, 'scripts/product.sh')).mode & 0o777, 0o640);
+  const metadata = JSON.parse(fs.readFileSync(path.join(direct, 'STANDARDS_MANIFEST.json')));
+  assert.deepEqual(metadata.standards, manifest.standards);
+  assert.equal(metadata.variant, variant);
+  assert.equal(metadata.assetDigest, manifest.assetDigest);
+  for (const asset of manifest.variants[variant].assets) {
+    const a = fs.readFileSync(path.join(direct, asset.path));
+    assert.deepEqual(a, fs.readFileSync(path.join(imported, asset.path)), asset.path);
+    assert.equal(fs.statSync(path.join(direct, asset.path)).mode & 0o777, asset.mode);
+    if (asset.text) assert.doesNotMatch(a.toString(), /__[A-Z][A-Z0-9_]*__/);
+    if (asset.path.startsWith('docs/playbook/') && asset.path.endsWith('.md')) {
+      for (const [, link] of a.toString().matchAll(/\]\(([^)]+)\)/g)) {
+        if (/^(?:[a-z]+:|#)/i.test(link)) continue;
+        const linked = path.resolve(direct, path.dirname(asset.path), link.split('#')[0]);
+        assert.ok(fs.existsSync(linked), `${asset.path}: missing offline link ${link}`);
+      }
+    }
+  }
+  for (const doc of ['README.md', 'engineering.md', 'quality.md', 'harness.md', 'design.md', `variants/${variant}.md`, 'adr/README.md', 'adr/0000-template.md']) {
+    assert.ok(fs.existsSync(path.join(direct, 'docs/playbook', doc)), doc);
+  }
+  const config = fs.readFileSync(path.join(direct, 'opencode.json'), 'utf8');
+  const runtimeConfig = JSON.parse(config);
+  assert.ok(runtimeConfig.mcp.servers.mobbin);
+  for (const key of ['providers', 'permissions', 'model', 'agents']) assert.ok(!(key in runtimeConfig));
+  for (const server of Object.values(runtimeConfig.mcp.servers)) assert.ok(!('enabled' in server));
+  assert.ok(fs.statSync(path.join(direct, 'scripts/frontend-gate.sh')).mode & 0o111);
+  const cloudWorkflow = path.join(direct, '.github/workflows/deploy-cloud.yml');
+  const vercelWorkflow = path.join(direct, '.github/workflows/deploy-vercel.yml');
+  assert.equal(fs.existsSync(cloudWorkflow), variant !== 'next-only');
+  assert.equal(fs.existsSync(vercelWorkflow), variant !== 'inertia-monolith');
+  if (variant !== 'next-only') {
+    assert.ok(fs.existsSync(path.join(direct, '.opencode/skills/funnysoft-quality/SKILL.md')));
+    assert.ok(fs.statSync(path.join(direct, 'scripts/php-gate.sh')).mode & 0o111);
+  }
+  if (variant === 'api-next') {
+    assert.equal(metadata.layout.phpRoot, 'services/api');
+    assert.deepEqual(metadata.layout.jsRoots, ['apps/web', 'packages/api-client', 'packages/design-system']);
+    assert.match(config, /services\/api\/artisan/);
+    assert.ok(fs.existsSync(path.join(direct, 'services/api/packages/boost-guidelines/composer.json')));
+  }
+  if (variant === 'next-only') {
+    assert.equal(metadata.layout.phpRoot, null);
+    assert.doesNotMatch(config, /php|boost|artisan/i);
+    for (const asset of manifest.variants[variant].assets) {
+      assert.doesNotMatch(asset.path, /\.php$|boost|php-gate|laravel-api/);
+      if (asset.path === 'lefthook.yml' || asset.path.endsWith('/quality.yml')) {
+        assert.doesNotMatch(fs.readFileSync(path.join(direct, asset.path), 'utf8'), /php|composer|artisan|boost/i);
+      }
+    }
+  }
+}
+const untouched = path.join(tmp, 'invalid-target');
+run('export.sh', ['--target', untouched], /release|identity/);
+run('export.sh', ['--target', untouched, '--release', 'main', '--commit', commit], /release|immutable/);
+run('export.sh', ['--target', untouched, '--release', 'v1.0.0'], /commit|identity/);
+run('stamp.sh', ['--target', untouched, '--variant', 'unknown', ...identity, ...product], /variant/);
+run('stamp.sh', ['--target', untouched, '--variant', 'next-only', ...product], /release|identity/);
+assert.ok(!fs.existsSync(untouched));
+const original = fs.readFileSync(path.join(bundle, 'manifest.json'));
+const bad = structuredClone(manifest);
+for (const invalid of ['../escaped', '/absolute']) {
+  bad.variants['next-only'].assets[0].path = invalid;
+  fs.writeFileSync(path.join(bundle, 'manifest.json'), JSON.stringify(bad));
+  run('stamp.sh', ['--target', untouched, '--variant', 'next-only', '--from-export', bundle, ...product], /path/);
+}
+for (const mutation of [
+  (value) => { value.variants['next-only'].assets[0].source = '../escape'; },
+  (value) => { value.variants['next-only'].assets[0].mode = 511; },
+  (value) => { delete value.standards.commit; },
+  (value) => { value.standards.release = 'main'; },
+  (value) => { value.variants['next-only'].assets = []; },
+]) {
+  const changed = structuredClone(manifest);
+  mutation(changed);
+  fs.writeFileSync(path.join(bundle, 'manifest.json'), JSON.stringify(changed));
+  run('stamp.sh', ['--target', untouched, '--variant', 'next-only', '--from-export', bundle, ...product], /path|mode|identity|assets/);
+}
+fs.writeFileSync(path.join(bundle, 'manifest.json'), JSON.stringify({ ...manifest, schemaVersion: 99 }));
+run('stamp.sh', ['--target', untouched, '--variant', 'next-only', '--from-export', bundle, ...product], /schema/);
+fs.writeFileSync(path.join(bundle, 'manifest.json'), original);
+run('stamp.sh', ['--target', untouched, '--variant', 'next-only', '--from-export', bundle, '--expected-digest', '0'.repeat(64), ...product], /digest/);
+run('stamp.sh', ['--target', untouched, '--variant', 'next-only', '--from-export', bundle, '--team', '__UNKNOWN__', '--team-slug', 'f7t', '--product-blurb', 'Example'], /unresolved token/);
+const symlinkTarget = path.join(tmp, 'symlink-target');
+const outside = path.join(tmp, 'outside');
+fs.mkdirSync(symlinkTarget);
+fs.mkdirSync(outside);
+fs.symlinkSync(outside, path.join(symlinkTarget, '.opencode'));
+run('stamp.sh', ['--target', symlinkTarget, '--variant', 'next-only', '--from-export', bundle, ...product], /symlink/);
+assert.deepEqual(fs.readdirSync(outside), []);
+assert.deepEqual(fs.readdirSync(symlinkTarget), ['.opencode']);
+// The bundled apply implementation runs without a standards checkout.
+const standalone = spawnSync(process.execPath, [path.join(bundle, 'apply.mjs'), 'apply', '--from-export', bundle, '--target', path.join(tmp, 'standalone'), '--variant', 'api-next', '--expected-digest', manifest.assetDigest, ...product], { encoding: 'utf8' });
+assert.equal(standalone.status, 0, standalone.stderr);
+const asset = manifest.variants['next-only'].assets[0];
+fs.appendFileSync(path.join(bundle, asset.source), 'tampered');
+run('stamp.sh', ['--target', untouched, '--variant', 'next-only', '--from-export', bundle, ...product], /digest/);
+assert.ok(!fs.existsSync(untouched), 'validation must precede target writes');
+// Future asset sets can carry binaries without decoding or token substitution.
+const sourceFixture = path.join(tmp, 'source');
+for (const dir of ['templates', 'docs', 'packages', 'scripts']) fs.cpSync(path.join(root, dir), path.join(sourceFixture, dir), { recursive: true });
+const sourceManifest = path.join(sourceFixture, 'templates/manifest.json');
+const spec = JSON.parse(fs.readFileSync(sourceManifest));
+const binaryAsset = Buffer.from([0, 255, ...Buffer.from('__TEAM__'), 128]);
+fs.writeFileSync(path.join(sourceFixture, 'templates/fixture.bin'), binaryAsset);
+spec.assetSets.harness.push({ source: 'templates/fixture.bin', destination: 'fixture.bin', text: false });
+fs.writeFileSync(sourceManifest, JSON.stringify(spec));
+const fixtureBundle = path.join(tmp, 'binary-export');
+const binaryExport = spawnSync('bash', [path.join(sourceFixture, 'scripts/export.sh'), '--target', fixtureBundle, ...identity], { encoding: 'utf8' });
+assert.equal(binaryExport.status, 0, binaryExport.stderr);
+run('stamp.sh', ['--target', path.join(tmp, 'binary-applied'), '--variant', 'next-only', '--from-export', fixtureBundle, ...product]);
+assert.deepEqual(fs.readFileSync(path.join(tmp, 'binary-applied/fixture.bin')), binaryAsset);
+spec.assetSets.harness.push({ source: 'templates/missing.txt', destination: 'missing.txt', text: true });
+fs.writeFileSync(sourceManifest, JSON.stringify(spec));
+const missing = spawnSync('bash', [path.join(sourceFixture, 'scripts/export.sh'), '--target', untouched, ...identity], { encoding: 'utf8' });
+assert.notEqual(missing.status, 0);
+assert.match(missing.stderr, /missing asset/);
+assert.ok(!fs.existsSync(untouched));
+console.log('export fixtures: ok');
+NODE
+
 mkdir -p "$tmp/vendor"
 printf '%s\n' '<?php echo "__TEAM__";' > "$tmp/vendor/x.php"
 printf 'PNG\x89__TEAM__\x00binary' > "$tmp/logo.png"

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-exec node "$root/scripts/standards-export.mjs" stamp "$@"
+exec node "$root/scripts/standards-export.mjs" export "$@"

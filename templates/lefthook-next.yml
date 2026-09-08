@@ -1,0 +1,10 @@
+commit-msg:
+  jobs:
+    - name: conventional-commit
+      run: scripts/lint-commit-msg.sh --file {1}
+pre-commit:
+  parallel: true
+  jobs:
+    - name: frontend
+      glob: ["**/*.{js,jsx,ts,tsx,css,json}", "bun.lock", "scripts/**"]
+      run: scripts/frontend-gate.sh lint && scripts/frontend-gate.sh typecheck && scripts/frontend-gate.sh test && scripts/frontend-gate.sh doctor

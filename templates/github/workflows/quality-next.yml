@@ -1,0 +1,65 @@
+# Hosting account connection is manual. Vercel deployments require this check.
+name: Quality
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  workflow_call:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  commit-lint:
+    if: github.event_name == 'pull_request'
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Lint commits and title
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          {
+            git log --format=%s --no-merges "origin/${BASE_REF}..HEAD"
+            printf '%s\n' "$PR_TITLE"
+          } | scripts/lint-commit-msg.sh
+  frontend-gate:
+    name: frontend-${{ matrix.gate }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [lint, typecheck, test, doctor]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@56408e9a3f6d4f21fb6b1bf4fd7529dc366d7611 # v2.0.2
+        with:
+          bun-version: 1.4.0
+      - run: bun install --frozen-lockfile
+      - run: scripts/frontend-gate.sh ${{ matrix.gate }}
+  browser:
+    # Next-only sites enable journeys by committing a Playwright config.
+    runs-on: blacksmith-4vcpu-ubuntu-2404-arm
+    timeout-minutes: 20
+    env:
+      E2E_MODE: stub
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@56408e9a3f6d4f21fb6b1bf4fd7529dc366d7611 # v2.0.2
+        with:
+          bun-version: 1.4.0
+      - name: Install and run stubbed journeys
+        if: hashFiles('playwright.config.*') != ''
+        run: |
+          bun install --frozen-lockfile
+          ./node_modules/.bin/playwright install --with-deps chromium
+          bun run build
+          scripts/frontend-gate.sh e2e

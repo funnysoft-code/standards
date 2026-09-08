@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Fresh Laravel schema -> fresh TypeScript. Check mode never rewrites artifacts.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+mode="${1:---check}"
+case "$mode" in --check|--write) ;; *) echo "usage: $0 --check|--write" >&2; exit 2 ;; esac
+[[ -f "$root/services/api/vendor/autoload.php" ]] || { echo 'schema: install API Composer dependencies first' >&2; exit 1; }
+compiler="$root/node_modules/.bin/openapi-typescript"
+[[ -x "$compiler" ]] || compiler="$root/packages/api-client/node_modules/.bin/openapi-typescript"
+[[ -x "$compiler" ]] || { echo 'schema: openapi-typescript missing; install locked JS dependencies' >&2; exit 1; }
+formatter="$root/node_modules/.bin/oxfmt"
+[[ -x "$formatter" ]] || formatter="$root/packages/api-client/node_modules/.bin/oxfmt"
+[[ -x "$formatter" ]] || { echo 'schema: oxfmt missing; install locked JS dependencies' >&2; exit 1; }
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+(
+    cd "$root/services/api"
+    FUNNYSOFT_REGISTRATION_ENABLED=true \
+    APP_CONFIG_CACHE="$tmp/config.php" \
+    APP_ROUTES_CACHE="$tmp/routes.php" \
+    php artisan scramble:export --path="$tmp/openapi.json"
+)
+"$compiler" "$tmp/openapi.json" -o "$tmp/schema.d.ts"
+# Use the committed destination paths for parser and project config discovery.
+# Format both fresh artifacts before either snapshot can be replaced.
+(
+    cd "$root"
+    "$formatter" --stdin-filepath packages/api-client/openapi.json < "$tmp/openapi.json" > "$tmp/formatted-openapi.json"
+    "$formatter" --stdin-filepath packages/api-client/src/schema.d.ts < "$tmp/schema.d.ts" > "$tmp/formatted-schema.d.ts"
+)
+mv "$tmp/formatted-openapi.json" "$tmp/openapi.json"
+mv "$tmp/formatted-schema.d.ts" "$tmp/schema.d.ts"
+schema="$root/packages/api-client/openapi.json"
+types="$root/packages/api-client/src/schema.d.ts"
+if [[ "$mode" == --write ]]; then
+    mkdir -p "$(dirname "$types")"
+    cp "$tmp/openapi.json" "$schema"
+    cp "$tmp/schema.d.ts" "$types"
+else
+    cmp -s "$tmp/openapi.json" "$schema" || { echo 'schema: OpenAPI is stale; run scripts/generate-api-client.sh --write' >&2; exit 1; }
+    cmp -s "$tmp/schema.d.ts" "$types" || { echo 'schema: TypeScript client is stale; run scripts/generate-api-client.sh --write' >&2; exit 1; }
+fi

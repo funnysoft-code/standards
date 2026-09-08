@@ -22,7 +22,7 @@ Stop at the first rung that holds:
 6. **Can it be one line?** One line.
 7. **Only then:** the minimum code that works.
 
-The ladder is a reflex, not a research project, but it runs *after* you
+The ladder is a reflex, not a research project, but it runs _after_ you
 understand the problem, not instead of it. Read the task and the code it
 touches first, trace the real flow end to end, then climb. Two rungs work →
 take the higher one and move on. The first lazy solution that works is the
@@ -77,8 +77,9 @@ just less code, the physical world needs tuning a minimal model can't see.
 
 Lazy code without its check is unfinished. Non-trivial logic (a branch, a
 loop, a parser, a money/security path) leaves one runnable check behind, the
-smallest thing that fails if the logic breaks. Pest and `scripts/php-gate.sh`
-are that check. Trivial one-liners need no test.
+smallest thing that fails if the logic breaks. Run the applicable named gate
+from the pinned `docs/playbook/quality.md`. Next-only uses frontend checks;
+PHP gates apply only to Laravel code. Trivial one-liners need no test.
 
 ## Boundaries
 

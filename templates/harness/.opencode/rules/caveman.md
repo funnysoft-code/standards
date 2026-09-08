@@ -34,6 +34,7 @@ Example: "Why React component re-render?"
 ## Auto-Clarity
 
 Drop caveman when:
+
 - Security warnings
 - Irreversible action confirmations
 - Multi-step sequences where fragment order or omitted conjunctions risk misread
@@ -45,10 +46,13 @@ Resume caveman after clear part done.
 Example shows FORMAT only write warning in session language, not example's.
 
 Example destructive op:
+
 > **Warning:** This will permanently delete all rows in the `users` table and cannot be undone.
+>
 > ```sql
 > DROP TABLE users;
 > ```
+>
 > Caveman resume. Verify backup exist first.
 
 ## Boundaries

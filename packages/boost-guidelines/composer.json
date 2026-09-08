@@ -1,10 +1,10 @@
 {
-    "name": "funnysoft/boost-guidelines",
-    "description": "Shared Laravel Boost guidelines for FunnySoft repos",
-    "type": "library",
-    "version": "0.1.0",
-    "license": "MIT",
-    "require": {
-        "php": "^8.5"
-    }
+  "name": "funnysoft/boost-guidelines",
+  "description": "Shared Laravel Boost guidelines for FunnySoft repos",
+  "type": "library",
+  "version": "0.1.0",
+  "license": "MIT",
+  "require": {
+    "php": "^8.5"
+  }
 }

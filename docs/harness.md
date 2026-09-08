@@ -1,6 +1,6 @@
 # Harness
 
-OpenCode is the only laptop process harness. Prefer it. Do not add Cursor, Grok Build, Codex, or Claude trees.
+OpenCode V2 is the laptop process harness. Do not add Cursor, Grok Build, Codex, or Claude trees.
 
 Laravel Boost is the Laravel agent layer, not the process harness.
 
@@ -8,18 +8,25 @@ Laravel Boost is the Laravel agent layer, not the process harness.
 
 OpenCode owns `.opencode/` and `opencode.json`. Do not add a second process harness.
 
-| Artifact | Path | Job |
-| --- | --- | --- |
-| Always-on overlay | `.opencode/rules/*.md` via `opencode.json` `instructions` | Loaded every session |
-| Skills | `.opencode/skills/<name>/SKILL.md` | On-demand procedures |
-| Adversary | `.opencode/agent/adversary.md` | Subagent. Uses the coordinator environment's configured review route |
-| Commands | `.opencode/command/*.md` | Slash commands when a product adds them |
-| MCP | `opencode.json` | Boost + Mobbin |
-| Product brief | `AGENTS.md` | Short. Points at the playbook pin and product docs |
+| Artifact       | Path                               | Job                                                                  |
+| -------------- | ---------------------------------- | -------------------------------------------------------------------- |
+| Shared overlay | `.opencode/rules/*.md`             | Read on entry as directed by the short `AGENTS.md`                   |
+| Skills         | `.opencode/skills/<name>/SKILL.md` | On-demand procedures                                                 |
+| Adversary      | `.opencode/agent/adversary.md`     | Subagent. Uses the coordinator environment's configured review route |
+| Commands       | `.opencode/command/*.md`           | Slash commands when a product adds them                              |
+| MCP            | `opencode.json` `mcp.servers`      | Boost + Mobbin for Laravel; Mobbin for Next-only                     |
+| Product brief  | `AGENTS.md`                        | Short. Points at the playbook pin and product docs                   |
 
 Creative-mode is a skill. Do not put it in `.opencode/rules` or OpenCode would always-load it.
 
 There is no root `CLAUDE.md`.
+
+OpenCode V2 currently accepts `instructions` but does not load those entries.
+Keep the field for compatibility, but do not rely on it to activate policy.
+The generator-owned short `AGENTS.md` must say: "Before work, read the applicable
+`.opencode/rules/*.md` files and the pinned `docs/playbook/README.md`."
+Stamp never replaces that product brief. V2 MCP servers connect by default;
+use `disabled: true` only to disable one. There is no V2 `enabled` field.
 
 ## Shared and machine-local layers
 
@@ -31,13 +38,13 @@ Compound Engineering remains the primary workflow suite. Machine-local roles rou
 
 ## Boost vs process
 
-Boost lives in the Laravel app tree. Repo root on an Inertia monolith (`__BOOST_ARTISAN__` = `artisan`). `services/api` on an API (`__BOOST_ARTISAN__` = `services/api/artisan`). Stamp replaces `__BOOST_ARTISAN__` in overlay files only.
+Boost lives in the Laravel app tree. Repo root on an Inertia monolith, with `artisan`. API + Next uses `services/api`, with `services/api/artisan`. The export resolves layout placeholders only in explicitly declared text assets. Next-only receives no Boost MCP command, package, sync script, PHP gate, or Laravel-only rule.
 
 Boost must not overwrite root `AGENTS.md`. It may append a `<laravel-boost-guidelines>` block. Commit `boost.json`. Generated Boost skills live under `.opencode/skills`. Point Boost there with `config/boost.php` `agents.opencode.skills_path`. Do not let Boost recreate `.agents/`.
 
 `boost.json` must set `agents` to `["opencode"]`, `cloud` true, `guidelines` true, and `packages` must include `funnysoft/boost-guidelines`. Sail stays a product fact. peca-certa keeps `sail` false.
 
-Stamp copies `packages/boost-guidelines`. The product Composer file path-requires it:
+Stamp copies `packages/boost-guidelines` relative to the PHP app root. In API + Next this is `services/api/packages/boost-guidelines`. The PHP app's Composer file path-requires it:
 
 ```json
 {
@@ -48,11 +55,25 @@ Stamp copies `packages/boost-guidelines`. The product Composer file path-require
 
 `funnysoft/boost-guidelines` ships API lines and Inertia+React lines. Inertia lines render only when those packages are installed.
 
-After `boost:update`, run `scripts/boost-sync-opencode-skills.sh` so Cloud skills in `.ai/skills` become real files under `.opencode/skills`. Hook it from Composer `post-update-cmd`.
+After `boost:update`, run `scripts/boost-sync-opencode-skills.sh` so app-local
+generated skills and Cloud skills in the PHP app's `.ai/skills` become real
+files under the repository root `.opencode/skills`. The export's `boostSkills`
+layout field retains the app-local Boost output path; the sync destination is
+always the repository root. Cloud copies take precedence over generated links
+with the same name. The bundled `funnysoft-quality` skill is also stamped as a
+real root file and shipped in the Boost guidelines package.
+
+Hook sync from Composer `post-update-cmd`, after `@php artisan boost:update --ansi`.
+Inertia uses `bash scripts/boost-sync-opencode-skills.sh`. API+Next uses
+`bash ../../scripts/boost-sync-opencode-skills.sh` from `services/api`.
 
 Authored MCP lives in `opencode.json`. Boost + Mobbin. Do not set a working directory on the Boost command; run it from the product root.
 
 ## Rule vs skill vs hook
+
+The versioned export contract is documented in [README.md](README.md). Both direct stamping and the generator apply the same export. Applicable OpenCode files are mandatory, copied as real files, with no personal providers, models, permissions, or global configuration symlinks. Shared playbook documents live in `docs/playbook/` in the generated product.
+
+Layout metadata names the PHP app root, JS roots, design home, Artisan path, and Boost skills destination for each stack. API + Next keeps JS applications and packages at `apps/web`, `packages/api-client`, and `packages/design-system`, while Laravel assets live under `services/api`. Commands must use the owning app root. The schema supports additional named asset sets for Boost skills, guidelines, stack gates, and OpenCode runtime configuration.
 
 Keep the harness thin.
 
