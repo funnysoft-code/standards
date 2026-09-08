@@ -10,8 +10,8 @@ Keep them short. A reader decides in two minutes whether it affects them.
 
 ## Index
 
-| Number | Title | Status | Date |
-| --- | --- | --- | --- |
+| Number                                | Title                                | Status   | Date       |
+| ------------------------------------- | ------------------------------------ | -------- | ---------- |
 | [0001](0001-opencode-only-harness.md) | OpenCode is the only process harness | Accepted | 2026-09-02 |
 
 Status values: Proposed, Accepted, Superseded.

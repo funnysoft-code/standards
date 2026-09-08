@@ -9,6 +9,14 @@ const variants = ['inertia-monolith', 'api-next', 'next-only'];
 const tokenPattern = /__[A-Z][A-Z0-9_]*__/g;
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const json = (value) => JSON.stringify(value, null, 2) + '\n';
+// Receipts use the formatter's compact primitive arrays, without a runtime
+// dependency on JS packages. Digest canonicalization remains JSON.stringify.
+function receiptJSON(value, depth = 0) {
+  if (Array.isArray(value)) return `[${value.map((item) => JSON.stringify(item)).join(', ')}]`;
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  const indent = '  '.repeat(depth);
+  return `{\n${Object.entries(value).map(([key, item]) => `${indent}  ${JSON.stringify(key)}: ${receiptJSON(item, depth + 1)}`).join(',\n')}\n${indent}}`;
+}
 const readJSON = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 function fail(message) { throw new Error(message); }
 function safePath(value, allowRoot = false) {
@@ -179,7 +187,7 @@ export function applyExport({ exportRoot, target, variant, team, teamSlug, produ
     return { path: asset.path, mode: asset.mode, bytes };
   });
   writes.push({ path: 'STANDARDS_VERSION', bytes: Buffer.from(manifest.standards.release + '\n'), mode: 0o644 });
-  writes.push({ path: 'STANDARDS_MANIFEST.json', bytes: Buffer.from(json({ schemaVersion: 1, standards: manifest.standards, assetDigest: manifest.assetDigest, variant, layout: selected.layout, local: manifest.local })), mode: 0o644 });
+  writes.push({ path: 'STANDARDS_MANIFEST.json', bytes: Buffer.from(receiptJSON({ schemaVersion: 1, standards: manifest.standards, assetDigest: manifest.assetDigest, variant, layout: selected.layout, local: manifest.local }) + '\n'), mode: 0o644 });
   for (const item of writes) {
     const dest = regularPath(target, item.path, true);
     if (fs.existsSync(dest) && !fs.statSync(dest).isFile()) fail(`target is not a file: ${item.path}`);

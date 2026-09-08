@@ -8,10 +8,10 @@ Gates, include lists, and how to run them: [quality.md](quality.md). Harness: [h
 
 Two nets. The same checks run at each net that can run them. Lefthook is an earlier copy of CI, not a different standard.
 
-| Net | When |
-| --- | --- |
-| Commit-time Lefthook | On commit |
-| Merge-time CI | On pull request |
+| Net                  | When            |
+| -------------------- | --------------- |
+| Commit-time Lefthook | On commit       |
+| Merge-time CI        | On pull request |
 
 Playwright TS is merge-time (needs a browser). Everything else that can run locally runs in Lefthook.
 

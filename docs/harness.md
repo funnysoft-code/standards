@@ -8,14 +8,14 @@ Laravel Boost is the Laravel agent layer, not the process harness.
 
 OpenCode owns `.opencode/` and `opencode.json`. Do not add a second process harness.
 
-| Artifact | Path | Job |
-| --- | --- | --- |
-| Shared overlay | `.opencode/rules/*.md` | Read on entry as directed by the short `AGENTS.md` |
-| Skills | `.opencode/skills/<name>/SKILL.md` | On-demand procedures |
-| Adversary | `.opencode/agent/adversary.md` | Subagent. Uses the coordinator environment's configured review route |
-| Commands | `.opencode/command/*.md` | Slash commands when a product adds them |
-| MCP | `opencode.json` `mcp.servers` | Boost + Mobbin for Laravel; Mobbin for Next-only |
-| Product brief | `AGENTS.md` | Short. Points at the playbook pin and product docs |
+| Artifact       | Path                               | Job                                                                  |
+| -------------- | ---------------------------------- | -------------------------------------------------------------------- |
+| Shared overlay | `.opencode/rules/*.md`             | Read on entry as directed by the short `AGENTS.md`                   |
+| Skills         | `.opencode/skills/<name>/SKILL.md` | On-demand procedures                                                 |
+| Adversary      | `.opencode/agent/adversary.md`     | Subagent. Uses the coordinator environment's configured review route |
+| Commands       | `.opencode/command/*.md`           | Slash commands when a product adds them                              |
+| MCP            | `opencode.json` `mcp.servers`      | Boost + Mobbin for Laravel; Mobbin for Next-only                     |
+| Product brief  | `AGENTS.md`                        | Short. Points at the playbook pin and product docs                   |
 
 Creative-mode is a skill. Do not put it in `.opencode/rules` or OpenCode would always-load it.
 

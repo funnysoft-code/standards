@@ -10,7 +10,14 @@ pre-commit:
   parallel: true
   jobs:
     - name: php
-      glob: ["{__LARAVEL_GLOBS__}", "composer.*", "phpunit*", "phpstan*", "rector*", "pint*", "scripts/**"]
+      glob:
+        - "{__LARAVEL_GLOBS__}"
+        - "composer.*"
+        - "phpunit*"
+        - "phpstan*"
+        - "rector*"
+        - "pint*"
+        - "scripts/**"
       run: scripts/php-gate.sh all
     - name: frontend
       glob: ["resources/**", "tests/**", "package.json", "bun.lock", "*.{js,ts,json}", "scripts/**"]

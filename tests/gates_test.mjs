@@ -33,6 +33,7 @@ fi
 if [[ "$name" == openapi-typescript ]]; then
   while [[ $# -gt 0 ]]; do if [[ "$1" == -o ]]; then printf '%s' "\${CLIENT_OUTPUT:-client}" > "$2"; break; fi; shift; done
 fi
+if [[ "$name" == oxfmt && "$*" == *--stdin-filepath* ]]; then cat; fi
 `;
 const realPhp = spawnSync('which', ['php'], { encoding: 'utf8' }).stdout.trim();
 try {
@@ -202,9 +203,22 @@ try {
       const r = run('frontend-gate.sh', 'schema'); assert.equal(r.status, 0, r.stderr);
       assert.ok(r.trace.includes(`${phpRoot}|php|artisan scramble:export`), r.trace);
       assert.match(r.trace, /\|openapi-typescript\|/);
+      assert.match(r.trace, /\|oxfmt\|--stdin-filepath packages\/api-client\/openapi.json/);
+      assert.match(r.trace, /\|oxfmt\|--stdin-filepath packages\/api-client\/src\/schema.d.ts/);
       assert.notEqual(run('frontend-gate.sh', 'schema', { SCHEMA_OUTPUT: 'changed backend' }).status, 0);
       assert.notEqual(run('frontend-gate.sh', 'schema', { CLIENT_OUTPUT: 'changed client' }).status, 0);
       assert.equal(run('frontend-gate.sh', 'schema', { FAIL_MATCH: 'scramble:export' }).status, 37);
+      for (const mode of ['--check', '--write']) {
+        assert.equal(run('generate-api-client.sh', mode, { FAIL_MATCH: 'oxfmt --stdin-filepath packages/api-client/src/schema.d.ts' }).status, 37);
+        const formatter = path.join(app, 'node_modules/.bin/oxfmt');
+        fs.renameSync(formatter, formatter + '.off');
+        try {
+          const missing = run('generate-api-client.sh', mode);
+          assert.notEqual(missing.status, 0);
+          assert.match(missing.stderr, /oxfmt missing/);
+          assert.equal(missing.trace, '');
+        } finally { fs.renameSync(formatter + '.off', formatter); }
+      }
       assert.equal(fs.readFileSync(path.join(app, 'packages/api-client/openapi.json'), 'utf8'), 'schema');
       assert.equal(fs.readFileSync(path.join(app, 'packages/api-client/src/schema.d.ts'), 'utf8'), 'client');
       assert.equal(run('generate-api-client.sh', '--write', { SCHEMA_OUTPUT: 'new schema', CLIENT_OUTPUT: 'new client' }).status, 0);

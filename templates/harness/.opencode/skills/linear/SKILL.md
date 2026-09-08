@@ -15,7 +15,7 @@ When work starts, the coordinator creates `type/__TEAM_SLUG__-NNN-slug` and sets
 
 Failed CI, further edits, or owner rejection return the issue to In Progress. A regression after Done reopens to In Progress.
 
-Do not use Testing or On Hold. Those states are archived. A __TEAM__ blocker is a `Blocked by` relation, not a state.
+Do not use Testing or On Hold. Those states are archived. A `__TEAM__` blocker is a `Blocked by` relation, not a state.
 
 The in-repo workflow rule is what agents execute. This skill is the Linear issue procedure. [docs/06-engineering.md](docs/06-engineering.md) is the working agreement. Do not create or update Linear documents. Do not read them as a source of truth.
 
@@ -45,24 +45,24 @@ Inspect candidates. Create only if none matches. If the CLI version changes, smo
 - Git ADRs are Proposed in a PR. Owner approval authorizes an Accepted commit on that branch. Binding only after squash-merge to the default branch. Accepted on an open PR is not binding.
 - Linear comments and Linear documents are not a source of truth.
 - Link PRs and ADRs on the issue.
-- Every PR references the issue identifier (__TEAM__-nnn) in its title or body.
+- Every PR references the issue identifier (`__TEAM__-nnn`) in its title or body.
 
 ## Labels
 
-| Label | Kind |
-| --- | --- |
-| `area:backend` | area |
-| `area:frontend` | area |
-| `area:mobile` | area |
-| `area:design` | area |
-| `area:infra` | area |
-| `area:harness` | area |
-| Bug | type (workspace) |
-| Feature | type (workspace) |
-| Improvement | type (workspace) |
-| Maintenance | type (team) |
-| Research | type (team) |
-| decision | ADR-tracked decisions |
+| Label           | Kind                  |
+| --------------- | --------------------- |
+| `area:backend`  | area                  |
+| `area:frontend` | area                  |
+| `area:mobile`   | area                  |
+| `area:design`   | area                  |
+| `area:infra`    | area                  |
+| `area:harness`  | area                  |
+| Bug             | type (workspace)      |
+| Feature         | type (workspace)      |
+| Improvement     | type (workspace)      |
+| Maintenance     | type (team)           |
+| Research        | type (team)           |
+| decision        | ADR-tracked decisions |
 
 ## Projects
 

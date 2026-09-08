@@ -8,13 +8,13 @@ Lefthook is an earlier copy of CI. Playwright TS is merge-time. Everything else 
 
 ### PHP (`scripts/php-gate.sh`)
 
-| Gate | Command / bar |
-| --- | --- |
-| `pint` | Pint, Laravel preset. `--parallel --test`. |
-| `phpstan` | PHPStan max. Larastan. Pest PHPStan plugin. No bleedingEdge. No new baseline. |
-| `rector` | Clean on the agreed set (Laravel current + Pest coding style + PHP current). |
-| `pest` | Pest 5 via `vendor/bin/pest`, not `artisan test` (providers load before PCOV). 100% line coverage of named product code. Not branch coverage. Coverage is not a reason to test private methods. 100% Pest type-coverage. Architecture tests lock the layer shape. |
-| `all` | pint, phpstan, rector, pest in that order. |
+| Gate      | Command / bar                                                                                                                                                                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pint`    | Pint, Laravel preset. `--parallel --test`.                                                                                                                                                                                                                        |
+| `phpstan` | PHPStan max. Larastan. Pest PHPStan plugin. No bleedingEdge. No new baseline.                                                                                                                                                                                     |
+| `rector`  | Clean on the agreed set (Laravel current + Pest coding style + PHP current).                                                                                                                                                                                      |
+| `pest`    | Pest 5 via `vendor/bin/pest`, not `artisan test` (providers load before PCOV). 100% line coverage of named product code. Not branch coverage. Coverage is not a reason to test private methods. 100% Pest type-coverage. Architecture tests lock the layer shape. |
+| `all`     | pint, phpstan, rector, pest in that order.                                                                                                                                                                                                                        |
 
 API+Next products may keep `scripts/api-gate.sh` as the PHP entry.
 
@@ -22,15 +22,15 @@ Test-first is encouraged, not required. Do not add TIA, sharding, or the Pest ag
 
 ### JS/TS (`scripts/frontend-gate.sh`)
 
-| Gate | Vite / Inertia | Next |
-| --- | --- | --- |
-| `lint` | `vp lint` / `vp fmt` (vite-plus) | `oxlint --deny-warnings` / oxfmt |
-| `typecheck` | `tsc --noEmit` | `tsc --noEmit` |
-| `test` | Vitest 100% line coverage of authored `lib/` | Vitest 100% line coverage of authored `lib/` (and workspace packages when they exist) |
-| `doctor` | React Doctor: zero warnings. Fix. Do not disable. | React Doctor: zero warnings. Fix. Do not disable. |
-| `e2e` | Playwright TS (merge-time) | Playwright TS (merge-time) |
-| `schema` | n/a | API+Next: fresh Laravel OpenAPI and fresh generated client match both committed artifacts |
-| `workflows` | n/a | API+Next: `tests/workflows.yml` registry |
+| Gate        | Vite / Inertia                                    | Next                                                                                      |
+| ----------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `lint`      | `vp lint` / `vp fmt` (vite-plus)                  | `oxlint --deny-warnings` / oxfmt                                                          |
+| `typecheck` | `tsc --noEmit`                                    | `tsc --noEmit`                                                                            |
+| `test`      | Vitest 100% line coverage of authored `lib/`      | Vitest 100% line coverage of authored `lib/` (and workspace packages when they exist)     |
+| `doctor`    | React Doctor: zero warnings. Fix. Do not disable. | React Doctor: zero warnings. Fix. Do not disable.                                         |
+| `e2e`       | Playwright TS (merge-time)                        | Playwright TS (merge-time)                                                                |
+| `schema`    | n/a                                               | API+Next: fresh Laravel OpenAPI and fresh generated client match both committed artifacts |
+| `workflows` | n/a                                               | API+Next: `tests/workflows.yml` registry                                                  |
 
 oxc family. No ESLint/Prettier.
 
@@ -38,11 +38,11 @@ Not page shells. A component with real logic moves into `lib/` first.
 
 ### E2E
 
-| Variant | E2E |
-| --- | --- |
-| Inertia monolith | Playwright TS. Pest Browser is retired. |
-| API+Next | Playwright TS + `tests/workflows.yml` registry. Maestro when a customer mobile app exists. |
-| Next-only | Playwright TS when the product has user journeys to lock. |
+| Variant          | E2E                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Inertia monolith | Playwright TS. Pest Browser is retired.                                                    |
+| API+Next         | Playwright TS + `tests/workflows.yml` registry. Maestro when a customer mobile app exists. |
+| Next-only        | Playwright TS when the product has user journeys to lock.                                  |
 
 Stubbed Playwright on CI. Live against Herd on the laptop. Lefthook skips Playwright.
 
@@ -67,10 +67,12 @@ React Doctor scans the full React app with `--blocking warning`, including a
 standalone Next root. Install React Doctor 0.9.12 or a verified compatible pin.
 
 API+Next uses `scripts/generate-api-client.sh --check` to export fresh Laravel
-OpenAPI into a temporary directory, generate types from that schema, and compare
+OpenAPI into a temporary directory, generate types from that schema, format both
+fresh artifacts with installed oxfmt using their destination paths, and compare
 both outputs with `packages/api-client/openapi.json` and
 `packages/api-client/src/schema.d.ts`. It never rewrites committed files in check
-mode. `--write` updates both after successful generation. Scramble Pro remains
+mode. `--write` updates both after successful generation and formatting. Missing
+oxfmt or a formatting error fails before either snapshot is written. Scramble Pro remains
 mandatory. The command requires its existing Composer credential setup on CI.
 
 `tests/workflows.yml` uses this shape. Every tag must appear in an `e2e/` test;
@@ -98,10 +100,10 @@ before deployment. Create hosting projects, services, deployment hooks, and
 production environment variables yourself. No workflow provisions resources.
 After connection, configure the matching repository variable and secret:
 
-| Target | Enable variable | Deployment hook secret |
-| --- | --- | --- |
-| Laravel Cloud | `DEPLOY_CLOUD_ENABLED=true` | `LARAVEL_CLOUD_DEPLOY_HOOK_URL` |
-| Vercel | `DEPLOY_VERCEL_ENABLED=true` | `VERCEL_DEPLOY_HOOK_URL` |
+| Target        | Enable variable              | Deployment hook secret          |
+| ------------- | ---------------------------- | ------------------------------- |
+| Laravel Cloud | `DEPLOY_CLOUD_ENABLED=true`  | `LARAVEL_CLOUD_DEPLOY_HOOK_URL` |
+| Vercel        | `DEPLOY_VERCEL_ENABLED=true` | `VERCEL_DEPLOY_HOOK_URL`        |
 
 Inertia receives the Cloud workflow, Next-only receives Vercel, and API+Next
 receives both. Keep provider auto-deploy disabled if it would bypass these
@@ -114,14 +116,14 @@ through the provider CLI before reporting a completed deployment.
 
 `scripts/` not `bin/`. Stamp copies the shared names. Product-only scripts (sidecars, worktrees) stay in `scripts/` and are not overwritten by stamp.
 
-| Script | Job |
-| --- | --- |
-| `stamp.sh` | In this repo. Copy templates into a product at a pin. |
-| `lint-commit-msg.sh` | Conventional Commits allowlist. |
-| `php-gate.sh` | `pint\|phpstan\|rector\|pest\|all` (Inertia monolith). API variant may keep `api-gate.sh`. |
-| `frontend-gate.sh` | `lint\|typecheck\|test\|e2e\|doctor` (plus `schema\|workflows` on API+Next). |
-| `screenshot.sh` | 1440x900 default, 390x844 phone. |
-| `ci-changes.sh` | Optional path-area detection when the repo has areas. |
+| Script               | Job                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------ |
+| `stamp.sh`           | In this repo. Copy templates into a product at a pin.                                      |
+| `lint-commit-msg.sh` | Conventional Commits allowlist.                                                            |
+| `php-gate.sh`        | `pint\|phpstan\|rector\|pest\|all` (Inertia monolith). API variant may keep `api-gate.sh`. |
+| `frontend-gate.sh`   | `lint\|typecheck\|test\|e2e\|doctor` (plus `schema\|workflows` on API+Next).               |
+| `screenshot.sh`      | 1440x900 default, 390x844 phone.                                                           |
+| `ci-changes.sh`      | Optional path-area detection when the repo has areas.                                      |
 
 ## Out of the percentage
 

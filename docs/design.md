@@ -8,11 +8,11 @@ Theme is silent in the playbook. Product DESIGN.md names it.
 
 Product design SSOT is `__DESIGN_ROOT__/DESIGN.md` plus mocks next to it. Stamp replaces `__DESIGN_ROOT__`.
 
-| Variant | `__DESIGN_ROOT__` | Mocks |
-| --- | --- | --- |
-| Inertia monolith | `design` | `design/mocks/<slug>/` |
-| API+Next monorepo | `packages/design-system` | `packages/design-system/mocks/` |
-| Next-only | `design` unless the product names another root | `design/mocks/<slug>/` |
+| Variant           | Design root                                    | Mocks                           |
+| ----------------- | ---------------------------------------------- | ------------------------------- |
+| Inertia monolith  | `design`                                       | `design/mocks/<slug>/`          |
+| API+Next monorepo | `packages/design-system`                       | `packages/design-system/mocks/` |
+| Next-only         | `design` unless the product names another root | `design/mocks/<slug>/`          |
 
 ## Mock folder
 

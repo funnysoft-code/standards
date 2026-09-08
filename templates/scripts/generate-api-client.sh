@@ -8,6 +8,9 @@ case "$mode" in --check|--write) ;; *) echo "usage: $0 --check|--write" >&2; exi
 compiler="$root/node_modules/.bin/openapi-typescript"
 [[ -x "$compiler" ]] || compiler="$root/packages/api-client/node_modules/.bin/openapi-typescript"
 [[ -x "$compiler" ]] || { echo 'schema: openapi-typescript missing; install locked JS dependencies' >&2; exit 1; }
+formatter="$root/node_modules/.bin/oxfmt"
+[[ -x "$formatter" ]] || formatter="$root/packages/api-client/node_modules/.bin/oxfmt"
+[[ -x "$formatter" ]] || { echo 'schema: oxfmt missing; install locked JS dependencies' >&2; exit 1; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 (
@@ -18,6 +21,15 @@ trap 'rm -rf "$tmp"' EXIT
     php artisan scramble:export --path="$tmp/openapi.json"
 )
 "$compiler" "$tmp/openapi.json" -o "$tmp/schema.d.ts"
+# Use the committed destination paths for parser and project config discovery.
+# Format both fresh artifacts before either snapshot can be replaced.
+(
+    cd "$root"
+    "$formatter" --stdin-filepath packages/api-client/openapi.json < "$tmp/openapi.json" > "$tmp/formatted-openapi.json"
+    "$formatter" --stdin-filepath packages/api-client/src/schema.d.ts < "$tmp/schema.d.ts" > "$tmp/formatted-schema.d.ts"
+)
+mv "$tmp/formatted-openapi.json" "$tmp/openapi.json"
+mv "$tmp/formatted-schema.d.ts" "$tmp/schema.d.ts"
 schema="$root/packages/api-client/openapi.json"
 types="$root/packages/api-client/src/schema.d.ts"
 if [[ "$mode" == --write ]]; then

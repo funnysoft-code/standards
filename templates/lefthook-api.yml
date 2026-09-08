@@ -9,7 +9,16 @@ pre-commit:
       glob: ["services/api/**", "scripts/**"]
       run: scripts/php-gate.sh all
     - name: frontend
-      glob: ["apps/**", "packages/**", "tests/**", "scripts/**", "package.json", "bun.lock", "*.{js,ts,json}"]
+      glob:
+        [
+          "apps/**",
+          "packages/**",
+          "tests/**",
+          "scripts/**",
+          "package.json",
+          "bun.lock",
+          "*.{js,ts,json}",
+        ]
       run: scripts/frontend-gate.sh lint && scripts/frontend-gate.sh typecheck && scripts/frontend-gate.sh test && scripts/frontend-gate.sh doctor && scripts/frontend-gate.sh workflows
     - name: schema
       glob: ["services/api/**", "packages/api-client/**", "scripts/**"]

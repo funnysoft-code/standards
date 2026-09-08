@@ -14,16 +14,16 @@ AGENTS.md in a product is short. It points at the playbook pin, the variant doc,
 
 ## Index
 
-| Doc | Purpose |
-| --- | --- |
-| [engineering.md](engineering.md) | Nets, git, review, adversary, PHP conventions, definition of done |
-| [harness.md](harness.md) | OpenCode tree, Boost vs process, overlay, retro |
-| [design.md](design.md) | Visual loop, mock store, screenshots |
-| [quality.md](quality.md) | Named gates and product-code include lists |
-| [variants/inertia-monolith.md](variants/inertia-monolith.md) | Laravel + Inertia + React |
-| [variants/api-next.md](variants/api-next.md) | Laravel API + Next (and Expo when a store app exists) |
-| [variants/next-only.md](variants/next-only.md) | Marketing and sites. No Laravel. |
-| [adr/](adr/README.md) | Playbook Architecture Decision Records |
+| Doc                                                          | Purpose                                                           |
+| ------------------------------------------------------------ | ----------------------------------------------------------------- |
+| [engineering.md](engineering.md)                             | Nets, git, review, adversary, PHP conventions, definition of done |
+| [harness.md](harness.md)                                     | OpenCode tree, Boost vs process, overlay, retro                   |
+| [design.md](design.md)                                       | Visual loop, mock store, screenshots                              |
+| [quality.md](quality.md)                                     | Named gates and product-code include lists                        |
+| [variants/inertia-monolith.md](variants/inertia-monolith.md) | Laravel + Inertia + React                                         |
+| [variants/api-next.md](variants/api-next.md)                 | Laravel API + Next (and Expo when a store app exists)             |
+| [variants/next-only.md](variants/next-only.md)               | Marketing and sites. No Laravel.                                  |
+| [adr/](adr/README.md)                                        | Playbook Architecture Decision Records                            |
 
 ## Reading order
 
@@ -69,5 +69,14 @@ An export contains:
 U3 can import `verifyExport(exportRoot, expectedDigest)` and `applyExport({ exportRoot, target, variant, team, teamSlug, productBlurb, expectedDigest })` from the bundled `apply.mjs`, or invoke `node apply.mjs apply --from-export ...` with the stamp flags above. The package release must validate the bundle before trusting its executable runtime. Apply writes only declared asset paths and the two standards identity files. It preserves unrelated target files, including binary assets and product scripts. It rejects symlink destinations.
 
 The generated `STANDARDS_MANIFEST.json` records `schemaVersion`, `standards`, `assetDigest`, `variant`, `layout`, and `local`. Generator/template identity belongs to the generator's own release receipt; it must not be guessed by standards.
+
+Receipt JSON uses two-space object indentation and compact primitive arrays for
+the declared layouts. Stamping needs no formatter or installed product packages.
+Before advancing an export, run `bash tests/stamp_test.sh`,
+`bash tests/gates_test.sh`, and
+`node tests/format_test.mjs /path/to/installed/oxfmt` from this repository.
+The formatter fixture checks all three stamped layouts and receipt semantics,
+direct/export parity, and fresh API artifacts against the installed formatter.
+The current formatter compatibility target is oxfmt 0.65.0.
 
 Linear via the Linear CLI is the issue SSOT. Workspace `funnysoft`. Do not create or update Linear documents. Process and roadmap live in git. Parked options and the current lean live on the issue body.
