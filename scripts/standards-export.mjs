@@ -64,26 +64,6 @@ function digestOf(manifest) {
   return hash(JSON.stringify(content));
 }
 
-// Transitional selection only. U2 replaces these legacy assets and removes this transform.
-function transformLegacy(assetPath, text) {
-  if (assetPath === 'opencode.json') {
-    const config = JSON.parse(text);
-    delete config.mcp['laravel-boost'];
-    return json(config);
-  }
-  const boundaries = {
-    'lefthook.yml': ['    - name: php\n', '    - name: frontend\n'],
-    '.github/workflows/quality.yml': ['  php-gate:\n', '  frontend-gate:\n'],
-  };
-  if (boundaries[assetPath]) {
-    const [start, end] = boundaries[assetPath];
-    const a = text.indexOf(start), b = text.indexOf(end);
-    if (a < 0 || b <= a) fail(`legacy selection boundaries missing: ${assetPath}`);
-    return text.slice(0, a) + text.slice(b);
-  }
-  return text;
-}
-
 export function createExport({ sourceRoot, target, release, commit, local = false, legacyOverrides = {} }) {
   const standards = { release, commit };
   identity(standards, local);
@@ -96,6 +76,7 @@ export function createExport({ sourceRoot, target, release, commit, local = fals
   for (const variant of variants) {
     const selected = spec.variants?.[variant];
     if (!selected || !Array.isArray(selected.assetSets)) fail(`missing variant: ${variant}`);
+    if (selected.transforms?.length) fail(`unknown transform: ${selected.transforms[0]}`);
     if (local && variant === 'inertia-monolith') {
       if (legacyOverrides.designRoot) selected.layout.designRoot = legacyOverrides.designRoot;
       if (legacyOverrides.boostArtisan) selected.layout.boostArtisan = legacyOverrides.boostArtisan;
@@ -126,10 +107,6 @@ export function createExport({ sourceRoot, target, release, commit, local = fals
           let bytes = fs.readFileSync(source);
           if (entry.text) {
             let text = textBytes(bytes);
-            for (const transform of selected.transforms ?? []) {
-              if (transform !== 'omit-legacy-laravel') fail(`unknown transform: ${transform}`);
-              text = transformLegacy(assetPath, text);
-            }
             const tokens = layoutTokens(selected.layout);
             if (local && variant === 'inertia-monolith' && legacyOverrides.laravelGlobs) tokens.__LARAVEL_GLOBS__ = legacyOverrides.laravelGlobs;
             text = substitute(text, tokens);

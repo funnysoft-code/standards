@@ -1,0 +1,16 @@
+commit-msg:
+  jobs:
+    - name: conventional-commit
+      run: scripts/lint-commit-msg.sh --file {1}
+pre-commit:
+  parallel: true
+  jobs:
+    - name: php
+      glob: ["services/api/**", "scripts/**"]
+      run: scripts/php-gate.sh all
+    - name: frontend
+      glob: ["apps/**", "packages/**", "tests/**", "scripts/**", "package.json", "bun.lock", "*.{js,ts,json}"]
+      run: scripts/frontend-gate.sh lint && scripts/frontend-gate.sh typecheck && scripts/frontend-gate.sh test && scripts/frontend-gate.sh doctor && scripts/frontend-gate.sh workflows
+    - name: schema
+      glob: ["services/api/**", "packages/api-client/**", "scripts/**"]
+      run: scripts/frontend-gate.sh schema

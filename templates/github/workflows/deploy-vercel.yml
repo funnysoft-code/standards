@@ -1,0 +1,29 @@
+name: Deploy Vercel
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-vercel-production
+  cancel-in-progress: false
+jobs:
+  quality:
+    uses: ./.github/workflows/quality.yml
+    secrets: inherit
+  deploy:
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - name: Report unconfigured deployment
+        if: vars.DEPLOY_VERCEL_ENABLED != 'true'
+        run: echo 'Quality passed. Vercel deployment is unconfigured; connect the project and enable its deployment hook.'
+      - name: Trigger the manually connected Vercel project
+        if: vars.DEPLOY_VERCEL_ENABLED == 'true'
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$DEPLOY_HOOK_URL" || { echo 'Configure the Vercel deployment hook first' >&2; exit 1; }
+          curl --fail --silent --show-error --output /dev/null --request POST "$DEPLOY_HOOK_URL"

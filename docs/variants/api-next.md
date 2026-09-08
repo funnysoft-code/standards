@@ -18,7 +18,10 @@ Read path: FormRequest validates query keys against repository allowlists. Contr
 
 nwidart domain modules own Actions, HTTP, Data, Repositories, Models, migrations for that module.
 
-Boost lives in `services/api`, with `services/api/artisan` and `services/api/.opencode/skills`. Composer runs from `services/api`. Its local guidelines package is `services/api/packages/boost-guidelines`.
+Boost lives in `services/api`, with `services/api/artisan` and app-local generated
+skills in `services/api/.opencode/skills`. Sync copies these and Cloud skills to
+real repository-root `.opencode/skills` files. Composer runs from `services/api`.
+Its local guidelines package is `services/api/packages/boost-guidelines`.
 
 Action classes still use the `*Action` suffix. No BaseAction. No repository interfaces.
 

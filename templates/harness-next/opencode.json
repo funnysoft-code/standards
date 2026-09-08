@@ -3,10 +3,6 @@
   "instructions": [".opencode/rules/*.md"],
   "mcp": {
     "servers": {
-      "laravel-boost": {
-        "type": "local",
-        "command": ["php", "__BOOST_ARTISAN__", "boost:mcp"]
-      },
       "mobbin": {
         "type": "remote",
         "url": "https://api.mobbin.com/mcp"

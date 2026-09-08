@@ -1,6 +1,6 @@
 # Harness
 
-OpenCode is the only laptop process harness. Prefer it. Do not add Cursor, Grok Build, Codex, or Claude trees.
+OpenCode V2 is the laptop process harness. Do not add Cursor, Grok Build, Codex, or Claude trees.
 
 Laravel Boost is the Laravel agent layer, not the process harness.
 
@@ -10,16 +10,23 @@ OpenCode owns `.opencode/` and `opencode.json`. Do not add a second process harn
 
 | Artifact | Path | Job |
 | --- | --- | --- |
-| Always-on overlay | `.opencode/rules/*.md` via `opencode.json` `instructions` | Loaded every session |
+| Shared overlay | `.opencode/rules/*.md` | Read on entry as directed by the short `AGENTS.md` |
 | Skills | `.opencode/skills/<name>/SKILL.md` | On-demand procedures |
 | Adversary | `.opencode/agent/adversary.md` | Subagent. Uses the coordinator environment's configured review route |
 | Commands | `.opencode/command/*.md` | Slash commands when a product adds them |
-| MCP | `opencode.json` | Boost + Mobbin |
+| MCP | `opencode.json` `mcp.servers` | Boost + Mobbin for Laravel; Mobbin for Next-only |
 | Product brief | `AGENTS.md` | Short. Points at the playbook pin and product docs |
 
 Creative-mode is a skill. Do not put it in `.opencode/rules` or OpenCode would always-load it.
 
 There is no root `CLAUDE.md`.
+
+OpenCode V2 currently accepts `instructions` but does not load those entries.
+Keep the field for compatibility, but do not rely on it to activate policy.
+The generator-owned short `AGENTS.md` must say: "Before work, read the applicable
+`.opencode/rules/*.md` files and the pinned `docs/playbook/README.md`."
+Stamp never replaces that product brief. V2 MCP servers connect by default;
+use `disabled: true` only to disable one. There is no V2 `enabled` field.
 
 ## Shared and machine-local layers
 
@@ -48,7 +55,17 @@ Stamp copies `packages/boost-guidelines` relative to the PHP app root. In API + 
 
 `funnysoft/boost-guidelines` ships API lines and Inertia+React lines. Inertia lines render only when those packages are installed.
 
-After `boost:update`, run `scripts/boost-sync-opencode-skills.sh` so Cloud skills in `.ai/skills` become real files under `.opencode/skills`. Hook it from Composer `post-update-cmd`.
+After `boost:update`, run `scripts/boost-sync-opencode-skills.sh` so app-local
+generated skills and Cloud skills in the PHP app's `.ai/skills` become real
+files under the repository root `.opencode/skills`. The export's `boostSkills`
+layout field retains the app-local Boost output path; the sync destination is
+always the repository root. Cloud copies take precedence over generated links
+with the same name. The bundled `funnysoft-quality` skill is also stamped as a
+real root file and shipped in the Boost guidelines package.
+
+Hook sync from Composer `post-update-cmd`, after `@php artisan boost:update --ansi`.
+Inertia uses `bash scripts/boost-sync-opencode-skills.sh`. API+Next uses
+`bash ../../scripts/boost-sync-opencode-skills.sh` from `services/api`.
 
 Authored MCP lives in `opencode.json`. Boost + Mobbin. Do not set a working directory on the Boost command; run it from the product root.
 

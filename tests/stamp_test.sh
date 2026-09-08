@@ -36,11 +36,13 @@ for (const variant of Object.keys(manifest.variants)) {
   const binary = Buffer.from([0, 255, ...Buffer.from('__TEAM__'), 128]);
   fs.writeFileSync(path.join(direct, 'scripts/product.bin'), binary);
   fs.writeFileSync(path.join(direct, 'scripts/product.sh'), '# __TEAM__\n');
+  fs.writeFileSync(path.join(direct, 'AGENTS.md'), 'Short product brief\n');
   fs.chmodSync(path.join(direct, 'scripts/product.sh'), 0o640);
   run('stamp.sh', ['--target', direct, '--variant', variant, ...identity, ...product]);
   run('stamp.sh', ['--target', imported, '--variant', variant, '--from-export', bundle, '--expected-digest', manifest.assetDigest, ...product]);
   assert.deepEqual(fs.readFileSync(path.join(direct, 'scripts/product.bin')), binary);
   assert.equal(fs.readFileSync(path.join(direct, 'scripts/product.sh'), 'utf8'), '# __TEAM__\n');
+  assert.equal(fs.readFileSync(path.join(direct, 'AGENTS.md'), 'utf8'), 'Short product brief\n');
   assert.equal(fs.statSync(path.join(direct, 'scripts/product.sh')).mode & 0o777, 0o640);
   const metadata = JSON.parse(fs.readFileSync(path.join(direct, 'STANDARDS_MANIFEST.json')));
   assert.deepEqual(metadata.standards, manifest.standards);
@@ -63,6 +65,19 @@ for (const variant of Object.keys(manifest.variants)) {
     assert.ok(fs.existsSync(path.join(direct, 'docs/playbook', doc)), doc);
   }
   const config = fs.readFileSync(path.join(direct, 'opencode.json'), 'utf8');
+  const runtimeConfig = JSON.parse(config);
+  assert.ok(runtimeConfig.mcp.servers.mobbin);
+  for (const key of ['providers', 'permissions', 'model', 'agents']) assert.ok(!(key in runtimeConfig));
+  for (const server of Object.values(runtimeConfig.mcp.servers)) assert.ok(!('enabled' in server));
+  assert.ok(fs.statSync(path.join(direct, 'scripts/frontend-gate.sh')).mode & 0o111);
+  const cloudWorkflow = path.join(direct, '.github/workflows/deploy-cloud.yml');
+  const vercelWorkflow = path.join(direct, '.github/workflows/deploy-vercel.yml');
+  assert.equal(fs.existsSync(cloudWorkflow), variant !== 'next-only');
+  assert.equal(fs.existsSync(vercelWorkflow), variant !== 'inertia-monolith');
+  if (variant !== 'next-only') {
+    assert.ok(fs.existsSync(path.join(direct, '.opencode/skills/funnysoft-quality/SKILL.md')));
+    assert.ok(fs.statSync(path.join(direct, 'scripts/php-gate.sh')).mode & 0o111);
+  }
   if (variant === 'api-next') {
     assert.equal(metadata.layout.phpRoot, 'services/api');
     assert.deepEqual(metadata.layout.jsRoots, ['apps/web', 'packages/api-client', 'packages/design-system']);
