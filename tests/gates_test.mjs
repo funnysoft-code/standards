@@ -24,6 +24,10 @@ printf '%s|%s|%s\\n' "$PWD" "$name" "$*" >> "$TRACE"
 if [[ -n "\${FAIL_MATCH:-}" && "$name $*" == *"$FAIL_MATCH"* ]]; then exit 37; fi
 if [[ "$name" == php && "$*" == *php-coverage-config.php* ]]; then exec "$REAL_PHP" "$@"; fi
 if [[ "$name" == php && "$*" == *scramble:export* ]]; then
+  [[ "\${FUNNYSOFT_REGISTRATION_ENABLED:-}" == true ]] || { echo 'export must include optional registration' >&2; exit 38; }
+  [[ -n "\${APP_CONFIG_CACHE:-}" && -n "\${APP_ROUTES_CACHE:-}" ]] || { echo 'export must isolate caches' >&2; exit 39; }
+  [[ ! -e "$APP_CONFIG_CACHE" && ! -e "$APP_ROUTES_CACHE" ]] || exit 40
+  [[ "$APP_CONFIG_CACHE" != "$APP_ROUTES_CACHE" ]] || exit 41
   for arg in "$@"; do [[ "$arg" != --path=* ]] || printf '%s' "\${SCHEMA_OUTPUT:-schema}" > "\${arg#--path=}"; done
 fi
 if [[ "$name" == openapi-typescript ]]; then

@@ -10,7 +10,13 @@ compiler="$root/node_modules/.bin/openapi-typescript"
 [[ -x "$compiler" ]] || { echo 'schema: openapi-typescript missing; install locked JS dependencies' >&2; exit 1; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-(cd "$root/services/api"; php artisan scramble:export --path="$tmp/openapi.json")
+(
+    cd "$root/services/api"
+    FUNNYSOFT_REGISTRATION_ENABLED=true \
+    APP_CONFIG_CACHE="$tmp/config.php" \
+    APP_ROUTES_CACHE="$tmp/routes.php" \
+    php artisan scramble:export --path="$tmp/openapi.json"
+)
 "$compiler" "$tmp/openapi.json" -o "$tmp/schema.d.ts"
 schema="$root/packages/api-client/openapi.json"
 types="$root/packages/api-client/src/schema.d.ts"
