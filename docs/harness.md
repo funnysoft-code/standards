@@ -31,13 +31,13 @@ Compound Engineering remains the primary workflow suite. Machine-local roles rou
 
 ## Boost vs process
 
-Boost lives in the Laravel app tree. Repo root on an Inertia monolith (`__BOOST_ARTISAN__` = `artisan`). `services/api` on an API (`__BOOST_ARTISAN__` = `services/api/artisan`). Stamp replaces `__BOOST_ARTISAN__` in overlay files only.
+Boost lives in the Laravel app tree. Repo root on an Inertia monolith, with `artisan`. API + Next uses `services/api`, with `services/api/artisan`. The export resolves layout placeholders only in explicitly declared text assets. Next-only receives no Boost MCP command, package, sync script, PHP gate, or Laravel-only rule.
 
 Boost must not overwrite root `AGENTS.md`. It may append a `<laravel-boost-guidelines>` block. Commit `boost.json`. Generated Boost skills live under `.opencode/skills`. Point Boost there with `config/boost.php` `agents.opencode.skills_path`. Do not let Boost recreate `.agents/`.
 
 `boost.json` must set `agents` to `["opencode"]`, `cloud` true, `guidelines` true, and `packages` must include `funnysoft/boost-guidelines`. Sail stays a product fact. peca-certa keeps `sail` false.
 
-Stamp copies `packages/boost-guidelines`. The product Composer file path-requires it:
+Stamp copies `packages/boost-guidelines` relative to the PHP app root. In API + Next this is `services/api/packages/boost-guidelines`. The PHP app's Composer file path-requires it:
 
 ```json
 {
@@ -53,6 +53,10 @@ After `boost:update`, run `scripts/boost-sync-opencode-skills.sh` so Cloud skill
 Authored MCP lives in `opencode.json`. Boost + Mobbin. Do not set a working directory on the Boost command; run it from the product root.
 
 ## Rule vs skill vs hook
+
+The versioned export contract is documented in [README.md](README.md). Both direct stamping and the generator apply the same export. Applicable OpenCode files are mandatory, copied as real files, with no personal providers, models, permissions, or global configuration symlinks. Shared playbook documents live in `docs/playbook/` in the generated product.
+
+Layout metadata names the PHP app root, JS roots, design home, Artisan path, and Boost skills destination for each stack. API + Next keeps JS applications and packages at `apps/web`, `packages/api-client`, and `packages/design-system`, while Laravel assets live under `services/api`. Commands must use the owning app root. The schema supports additional named asset sets for Boost skills, guidelines, stack gates, and OpenCode runtime configuration.
 
 Keep the harness thin.
 

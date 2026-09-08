@@ -1,6 +1,8 @@
 # Variant: Inertia monolith
 
-Laravel + Inertia + React 19 + Tailwind 4 + shadcn. Wayfinder. Spatie typescript-transformer. bun. vite-plus. Boost at repo root (`__BOOST_ARTISAN__` = `artisan`). Horizon. UUID primary keys allowed (`HasUuids`).
+Laravel + Inertia + React 19 + Tailwind 4 + shadcn. Wayfinder. Spatie typescript-transformer. bun. vite-plus. Boost at repo root with `artisan`. Horizon. UUID primary keys allowed (`HasUuids`).
+
+Export variant: `inertia-monolith`. PHP and JS commands run at the repository root; frontend source is `resources/js`. Boost skills live in `.opencode/skills`, its guidelines package in `packages/boost-guidelines`, and design assets in `design`.
 
 Playbook defaults in [engineering.md](../engineering.md). Gates and include lists in [quality.md](../quality.md).
 
@@ -50,11 +52,11 @@ Tests: `tests/Http/{Noun}`, `tests/Unit` for pure mappers, `tests/Architecture`.
 
 Playwright TS. Pest Browser is retired.
 
-Passkeys stay when a login UI exists.
+Apply the shared [account policy](../engineering.md#shared-laravel-account-policy). Registration is complete but disabled by default in `config/funnysoft.php`. Inertia props expose Laravel's public capabilities. Include verification, account settings, first-user provisioning, password/passkey confirmation, and optional authenticator 2FA. No team or product module is required to enter the app.
 
 `per_page` default is product.
 
-Design SSOT: `__DESIGN_ROOT__` = `design` ([design.md](../design.md)).
+Design SSOT: `design` ([design.md](../design.md)).
 
 ## Laptop and deploy
 

@@ -149,6 +149,24 @@ Stubs/generators for Action, Request, Data, Repository, Controller. Do not hand-
 
 Never commit secrets. `.env` untracked. If a secret appears in a diff, stop and rotate.
 
+## Shared Laravel account policy
+
+Both Laravel variants start with individual users. No team records or organization module are required to provision or sign in. Product-specific clinical, motorsport, billing, AI, and other domain dependencies are not starter requirements.
+
+`config/funnysoft.php` owns shared application settings, starting with public registration, disabled by default. Keep the complete registration flow installed. Enforce its switch both when registering routes/features and at request time, so cached routes and stale pages cannot reopen registration. Visible sign-up entry points follow the same setting. Document rebuilding configuration and route caches after changing it.
+
+Fortify with the session-backed web guard owns login, logout, password reset, and recent confirmation. Application access requires verified email. Unverified users can reach the verification notice, resend action, verification-link handler, and logout. Account settings support name/email edits, password changes, and deletion. Changing email clears verification and requires it again. Each flow needs usable success, validation, loading, and failure states.
+
+A first-user command creates an unverified account and sends its verification message even when public registration is disabled. Local mail must be retrievable without production credentials. Provisioning does not bypass verification.
+
+Include passkey enrollment, login, safe credential listing, removal, and confirmation for sensitive actions. Include optional authenticator-app 2FA enrollment, confirmation, recovery codes, login challenges, and removal. Use supported Fortify/passkey ceremonies. Password login challenges confirmed authenticator enrollment; passkey login uses WebAuthn user verification without a second TOTP challenge. Login alone does not grant recent confirmation.
+
+Email/password changes, deletion, passkey changes, authenticator management, and recovery-code access require the same recent password-or-passkey confirmation boundary. Name-only changes do not. JSON clients handle a 423 response by confirming, then retrying the intended action once. Do not add a raw-current-password requirement that rejects successful passkey confirmation.
+
+Laravel remains the account-policy authority in API + Next. Inertia shares public capabilities through props. API + Next exposes them through a public capabilities resource, with no second frontend registration switch. Account HTTP contracts follow the selected variant. API verification links authorize the public UUID and current email hash, not the integer database key. Passkey resources expose safe public metadata, never credential payloads.
+
+Standalone Next has no generated account system. Its existing site/data choices remain independent of this Laravel account policy.
+
 ## Frontend policy
 
 oxc family. No ESLint/Prettier. Vite/Inertia apps: `vp lint` / `vp fmt`. Next apps: `oxlint --deny-warnings` / oxfmt. `tsc --noEmit`. React Doctor: zero warnings. Fix. Do not disable.
