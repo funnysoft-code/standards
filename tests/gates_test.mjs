@@ -36,6 +36,8 @@ fi
 if [[ ( "$name" == oxfmt || "$name" == vp ) && "$*" == *--stdin-filepath* ]]; then cat; fi
 `;
 const realPhp = spawnSync('which', ['php'], { encoding: 'utf8' }).stdout.trim();
+const playwright = process.argv[2];
+assert.ok(playwright && fs.existsSync(path.join(playwright, 'cli.js')), 'pass an installed @playwright/test package directory as argument');
 try {
   const bundle = path.join(tmp, 'export');
   createExport({ sourceRoot: root, target: bundle, release: 'v0.0.0-fixture', commit: '0'.repeat(40) });
@@ -103,6 +105,11 @@ try {
       for (const server of Object.values(c.mcp.servers)) assert.ok(!('enabled' in server));
       assert.equal(Boolean(c.mcp.servers['laravel-boost']), variant !== 'next-only');
     });
+    check(`${variant}: shared rule names the applicable pinned quality gate`, () => {
+      const rule = fs.readFileSync(path.join(app, '.opencode/rules/ponytail.md'), 'utf8');
+      assert.match(rule, /docs\/playbook\/quality.md/);
+      assert.doesNotMatch(rule, /Pest and `scripts\/php-gate.sh`/);
+    });
     check(`${variant}: workflow YAML, pinned actions, hook boundary`, () => {
       const hooks = fs.readFileSync(path.join(app, 'lefthook.yml'), 'utf8');
       assert.doesNotMatch(hooks.replace(/^#.*$/gm, ''), /playwright|frontend-gate.sh e2e/i);
@@ -124,6 +131,88 @@ try {
         assert.equal(deploy.jobs.deploy.needs, 'quality');
         assert.equal(deploy.concurrency['cancel-in-progress'], false);
         assert.ok(deploy.jobs.deploy.steps.some((step) => step.name === 'Report unconfigured deployment'));
+        assert.equal(deploy.jobs.deploy.if, "github.ref == 'refs/heads/main'");
+        assert.deepEqual(Object.keys(deploy.on), ['workflow_dispatch']);
+        const text = JSON.stringify(deploy);
+        if (name === 'deploy-cloud.yml') {
+          const step = deploy.jobs.deploy.steps.find((step) => step.name === 'Request Cloud deployment of the checked revision');
+          assert.ok(step, 'Cloud must offer a revision-bound deploy hook');
+          assert.equal(step.env.CHECKED_SHA, '${{ github.sha }}');
+          assert.equal(step.env.DEPLOY_HOOK_URL, '${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK_URL }}');
+          const deployBin = path.join(app, 'cloud-fixture-bin');
+          put(path.join(deployBin, 'curl'), `#!/usr/bin/env bash
+set -eu
+printf '%s\\n' "$@" >> "$TRACE"
+printf '%s' "\${HTTP_STATUS:-202}"
+exit "\${CURL_EXIT:-0}"
+`, 0o755);
+          const hook = 'https://cloud.laravel.com/deploy-hooks/fixture-token';
+          const invoke = (changes = {}) => {
+            fs.writeFileSync(trace, '');
+            return spawnSync('bash', ['-c', step.run], { cwd: app, encoding: 'utf8', env: {
+              ...process.env, PATH: `${deployBin}:${process.env.PATH}`, TRACE: trace,
+              CHECKED_SHA: 'a'.repeat(40), MOVING_MAIN_SHA: 'b'.repeat(40), DEPLOY_HOOK_URL: hook, ...changes,
+            } });
+          };
+          const success = invoke();
+          assert.equal(success.status, 0, success.stderr);
+          const calls = fs.readFileSync(trace, 'utf8').trim().split('\n');
+          assert.ok(calls.includes(`${hook}?commit_hash=${'a'.repeat(40)}`));
+          assert.equal(calls[calls.indexOf('--request') + 1], 'POST');
+          assert.equal(calls[0], '--disable');
+          assert.ok(!calls.includes('--location'));
+          assert.doesNotMatch(calls.join('\n'), /b{40}/);
+          assert.doesNotMatch(success.stdout + success.stderr, /fixture-token|success|complete/i);
+          for (const changes of [
+            { CHECKED_SHA: '' }, { CHECKED_SHA: 'abc123' }, { CHECKED_SHA: 'g'.repeat(40) },
+            { DEPLOY_HOOK_URL: '' }, { DEPLOY_HOOK_URL: 'http://cloud.laravel.com/hook' },
+            { DEPLOY_HOOK_URL: hook + '?commit_hash=other' }, { DEPLOY_HOOK_URL: hook + '#fragment' },
+          ]) {
+            assert.notEqual(invoke(changes).status, 0);
+            assert.equal(fs.readFileSync(trace, 'utf8'), '', 'invalid input must fail before the hook');
+          }
+          for (const changes of [{ CURL_EXIT: '6' }, { CURL_EXIT: '28' }, { HTTP_STATUS: '302' }, { HTTP_STATUS: '422' }, { HTTP_STATUS: '500' }]) {
+            const failed = invoke(changes);
+            assert.notEqual(failed.status, 0);
+            assert.doesNotMatch(failed.stdout + failed.stderr, /fixture-token|success|complete/i);
+          }
+        } else {
+          assert.doesNotMatch(text, /DEPLOY_HOOK_URL/);
+          assert.ok(deploy.jobs.deploy.steps.some((step) => step.with?.ref === '${{ github.sha }}'));
+          assert.match(text, /build --prod/);
+          assert.match(text, /deploy --prebuilt --prod --skip-domain/);
+          assert.match(text, /promote/);
+          const step = deploy.jobs.deploy.steps.find((step) => step.name === 'Build and promote the checked revision');
+          const deployBin = path.join(app, 'deploy-fixture-bin');
+          for (const command of ['npm', 'bun', 'git', 'vercel']) put(path.join(deployBin, command), `#!/usr/bin/env bash
+set -eu
+name="$(basename "$0")"
+printf '%s %s\\n' "$name" "$*" >> "$TRACE"
+if [[ "$name" == git ]]; then printf '%s\\n' "$CHECKOUT_SHA"; fi
+if [[ "$name" == vercel && "$1" == deploy ]]; then
+  [[ "\${FAIL_UPLOAD:-}" != true ]] || exit 19
+  printf '%s\\n' 'https://checked-artifact.vercel.app'
+fi
+`, 0o755);
+          const invoke = (changes = {}) => {
+            fs.writeFileSync(trace, '');
+            return spawnSync('bash', ['-c', step.run], { cwd: app, encoding: 'utf8', env: {
+              ...process.env, PATH: `${deployBin}:${process.env.PATH}`, TRACE: trace,
+              CHECKED_SHA: 'a'.repeat(40), CHECKOUT_SHA: 'a'.repeat(40), MOVING_MAIN_SHA: 'b'.repeat(40),
+              VERCEL_TOKEN: 'fixture', VERCEL_ORG_ID: 'existing-org', VERCEL_PROJECT_ID: 'existing-project', VERCEL_CLI_VERSION: '54.0.0', ...changes,
+            } });
+          };
+          const success = invoke();
+          assert.equal(success.status, 0, success.stderr);
+          const calls = fs.readFileSync(trace, 'utf8');
+          assert.match(calls, /deploy --prebuilt --prod --skip-domain --yes --meta githubCommitSha=a{40}/);
+          assert.match(calls, /promote https:\/\/checked-artifact.vercel.app --yes/);
+          assert.doesNotMatch(calls, /b{40}/);
+          for (const changes of [{ CHECKOUT_SHA: 'b'.repeat(40) }, { VERCEL_PROJECT_ID: '' }, { VERCEL_CLI_VERSION: 'latest' }, { FAIL_UPLOAD: 'true' }]) {
+            assert.notEqual(invoke(changes).status, 0);
+            assert.doesNotMatch(fs.readFileSync(trace, 'utf8'), /vercel promote/);
+          }
+        }
       }
     });
     if (variant === 'next-only') continue;
@@ -211,14 +300,39 @@ try {
       assert.equal(fs.readFileSync(path.join(app, '.opencode/skills/pest-testing/SKILL.md'), 'utf8'), 'Pest skill\n');
     });
     check('api-next: real workflow registry parser', () => {
+      fs.mkdirSync(path.join(app, 'node_modules/@playwright'), { recursive: true });
+      fs.symlinkSync(path.resolve(playwright), path.join(app, 'node_modules/@playwright/test'));
+      put(path.join(app, 'playwright.config.ts'), 'export default { testDir: "./e2e" };');
       const registry = path.join(app, 'tests/workflows.yml');
       const spec = path.join(app, 'e2e/account.spec.ts');
       const invoke = () => spawnSync('bun', [path.join(app, 'scripts/check-workflows.mjs')], { cwd: tmp, encoding: 'utf8' });
       assert.notEqual(invoke().status, 0);
       put(registry, 'workflows:\n  - id: login\n    tag: "@login"\n');
-      put(spec, 'test("@login user can sign in", () => {});');
+      const specPut = (source) => put(spec, 'import { test } from "@playwright/test";\n' + source);
+      specPut('test("@login user can sign in", () => {});');
       assert.equal(invoke().status, 0);
-      put(spec, 'test("@login-other", () => {});');
+      for (const source of [
+        '// @login\ntest("unrelated", () => {});',
+        'const note = "@login"; test("unrelated", () => {});',
+        'test.skip("@login", () => {});',
+        'test.describe.skip("@login", () => { test("child", () => {}); });',
+        'test.describe("@login", () => {});',
+        'test("unrelated", () => { const note = "@login"; });',
+        'function neverCalled() { test("@login", () => {}); }',
+      ]) {
+        specPut(source);
+        assert.notEqual(invoke().status, 0, source);
+      }
+      for (const source of [
+        'test("login", { tag: "@login" }, () => {});',
+        'test.describe("account", { tag: ["@login"] }, () => { test("child", () => {}); });',
+        'test.describe("@login", () => { test("child", () => {}); });',
+      ]) {
+        specPut(source);
+        const result = invoke();
+        assert.equal(result.status, 0, source + '\n' + result.stderr);
+      }
+      specPut('test("@login-other", () => {});');
       assert.notEqual(invoke().status, 0);
       put(registry, 'workflows: []\n'); assert.notEqual(invoke().status, 0);
       put(registry, 'workflows:\n  - id: login\n    tag: "@login"\n  - id: login\n    tag: "@login"\n');

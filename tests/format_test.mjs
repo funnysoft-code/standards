@@ -52,6 +52,7 @@ try {
   for (const variant of ['inertia-monolith', 'api-next']) {
     const app = path.join(tmp, 'boost-' + variant);
     applyExport({ exportRoot: bundle, target: app, variant, team: 'F7T', teamSlug: 'f7t', productBlurb: 'Fixture' });
+    put(path.join(app, 'package.json'), '{"name":"formatter-fixture","private":true}\n');
     const phpRoot = variant === 'api-next' ? path.join(app, 'services/api') : app;
     const generated = path.join(phpRoot, '.opencode/skills');
     const destination = path.join(app, '.opencode/skills');

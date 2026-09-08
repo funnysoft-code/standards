@@ -14,16 +14,39 @@ jobs:
     needs: quality
     if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
-    timeout-minutes: 5
+    timeout-minutes: 30
     environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
     steps:
       - name: Report unconfigured deployment
         if: vars.DEPLOY_VERCEL_ENABLED != 'true'
-        run: echo 'Quality passed. Vercel deployment is unconfigured; connect the project and enable its deployment hook.'
-      - name: Trigger the manually connected Vercel project
+        run: echo 'Quality passed. Vercel deployment is unconfigured; connect an existing project as described in docs/playbook/quality.md.'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: vars.DEPLOY_VERCEL_ENABLED == 'true'
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@56408e9a3f6d4f21fb6b1bf4fd7529dc366d7611 # v2.0.2
+        if: vars.DEPLOY_VERCEL_ENABLED == 'true'
+        with:
+          bun-version: 1.4.0
+      - name: Build and promote the checked revision
         if: vars.DEPLOY_VERCEL_ENABLED == 'true'
         env:
-          DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+          CHECKED_SHA: ${{ github.sha }}
+          VERCEL_CLI_VERSION: ${{ vars.VERCEL_CLI_VERSION }}
         run: |
-          test -n "$DEPLOY_HOOK_URL" || { echo 'Configure the Vercel deployment hook first' >&2; exit 1; }
-          curl --fail --silent --show-error --output /dev/null --request POST "$DEPLOY_HOOK_URL"
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CHECKED_SHA"
+          test -n "$VERCEL_TOKEN" && test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID" || { echo 'Configure the existing Vercel project IDs and token first' >&2; exit 1; }
+          [[ "$VERCEL_CLI_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Set VERCEL_CLI_VERSION to a verified exact version' >&2; exit 1; }
+          npm install --global "vercel@$VERCEL_CLI_VERSION"
+          bun install --frozen-lockfile
+          vercel pull --yes --environment=production
+          vercel build --prod
+          deployment_url="$(vercel deploy --prebuilt --prod --skip-domain --yes --meta "githubCommitSha=$CHECKED_SHA")"
+          [[ "$deployment_url" =~ ^https://[a-zA-Z0-9.-]+\.vercel\.app$ ]] || { echo 'Vercel did not return a deployment URL' >&2; exit 1; }
+          vercel promote "$deployment_url" --yes

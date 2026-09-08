@@ -75,10 +75,16 @@ mode. `--write` updates both after successful generation and formatting. Missing
 oxfmt or a formatting error fails before either snapshot is written. Scramble Pro remains
 mandatory. The command requires its existing Composer credential setup on CI.
 
-`tests/workflows.yml` uses this shape. Every tag must appear in an `e2e/` test;
+`tests/workflows.yml` uses this shape. Every tag must belong to an active `e2e/` test;
 duplicate ids/tags, empty registries, and missing tags fail the `workflows` gate.
-The registry parser uses Bun's built-in YAML parser and does not run Playwright
-in Lefthook.
+The registry parser uses Bun's built-in YAML parser and the installed
+`@playwright/test` CLI with `test --list --reporter=json`. Collection is
+browser-free: it evaluates declarations and config, without running test bodies
+or global setup. Literal title tags, inherited describe tags and tag metadata
+count. Comments, unrelated strings, empty suites and statically skipped tests
+do not. Conditional skips inside test bodies are checked only by browser CI.
+Keep config and declaration-time code free of external service calls so this
+local gate works offline. Collection errors fail the gate.
 
 ```yaml
 workflows:
@@ -96,21 +102,62 @@ An installed-tool or test failure is never converted into a pass.
 ### Manual deployment connections
 
 The stamped deployment workflows are manual and run reusable quality checks
-before deployment. Create hosting projects, services, deployment hooks, and
+before deployment. Create hosting projects, services, and
 production environment variables yourself. No workflow provisions resources.
-After connection, configure the matching repository variable and secret:
-
-| Target        | Enable variable              | Deployment hook secret          |
-| ------------- | ---------------------------- | ------------------------------- |
-| Laravel Cloud | `DEPLOY_CLOUD_ENABLED=true`  | `LARAVEL_CLOUD_DEPLOY_HOOK_URL` |
-| Vercel        | `DEPLOY_VERCEL_ENABLED=true` | `VERCEL_DEPLOY_HOOK_URL`        |
-
 Inertia receives the Cloud workflow, Next-only receives Vercel, and API+Next
 receives both. Keep provider auto-deploy disabled if it would bypass these
-quality checks. Hooks target `main`; unconfigured targets do not deploy.
-The hook request only queues a provider deployment. Its success is not proof
-that the provider build, migration, or rollout succeeded. Inspect that result
-through the provider CLI before reporting a completed deployment.
+quality checks. Dispatch is restricted to `main`. Quality and deployment refer
+to the dispatch's immutable `github.sha`, even when `main` advances during CI.
+Unconfigured targets report that state without deploying.
+
+For Vercel, configure repository variables `DEPLOY_VERCEL_ENABLED=true`,
+`VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, and an exact verified `VERCEL_CLI_VERSION`.
+Store `VERCEL_TOKEN` as a secret. IDs must identify an existing project and team;
+the workflow does not create or discover a project. Configure its root directory
+and production environment manually, including `apps/web` for API+Next, with
+build commands compatible with the repository's locked Bun dependencies.
+The workflow checks out `github.sha`, verifies HEAD, installs the lockfile,
+pulls production settings, and runs `vercel build --prod`. It deploys that local
+output with `--prebuilt --prod --skip-domain`, records `githubCommitSha` metadata,
+and promotes only the returned deployment URL. It never deploys a moving branch.
+This binds source bytes to the quality revision; provider settings and production
+environment values are separately managed configuration. Verify application health
+after promotion before reporting a completed rollout.
+
+For Cloud, connect the existing environment to this repository's `main` branch
+and disable push-to-deploy in Settings > Deployments. Enable its deploy hook,
+store the raw HTTPS URL as the secret `LARAVEL_CLOUD_DEPLOY_HOOK_URL`, and set
+`DEPLOY_CLOUD_ENABLED=true`. Store the URL without query parameters or a fragment.
+Configure build/deploy commands and production variables manually, including
+the `services/api` application root for API+Next.
+
+The [official Cloud deploy-hook contract](https://laravel.com/cloud/docs/deployments#deploy-hooks)
+accepts a POST with `?commit_hash=<commit>` and says it pulls code from that
+specified commit. Its GitHub Actions example passes `github.sha` directly.
+The commit must belong to the environment's configured branch. Only omission
+of the parameter is documented to select the latest branch commit. The workflow
+requires a full 40-character hexadecimal `github.sha` before issuing this POST,
+so advancing `main` does not change the requested revision. It never falls back
+to a branch-only request or sends an undocumented `commit_sha` body.
+
+Missing or malformed local configuration fails before any request. Transport
+errors and non-2xx responses fail the job. The request has bounded timeouts,
+does not follow redirects, and is not automatically retried. The secret URL and
+provider response body are not printed. A 2xx response acknowledges the hook
+request; it does not verify a completed build or rollout. Before retrying a
+timed-out request, inspect Cloud because the deployment may already be queued.
+
+The official docs do not specify the response or fallback behavior for an
+unknown or off-branch hash. Keep the checked commit reachable on `main` and
+verify the provider's recorded `commit_hash` and final deployment status before
+reporting a release complete. Local validation cannot prove remote reachability.
+The binding is supported by the documented contract and mocked execution tests;
+a real-provider revision and rollout check remains part of release verification.
+
+Provider contracts checked on 2026-09-08. Vercel references:
+[prebuilt deployments](https://vercel.com/docs/cli/deploying-from-cli),
+[build](https://vercel.com/docs/cli/build), and
+[promote](https://vercel.com/docs/cli/promote).
 
 ## Shared scripts
 

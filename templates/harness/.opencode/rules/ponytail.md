@@ -77,8 +77,9 @@ just less code, the physical world needs tuning a minimal model can't see.
 
 Lazy code without its check is unfinished. Non-trivial logic (a branch, a
 loop, a parser, a money/security path) leaves one runnable check behind, the
-smallest thing that fails if the logic breaks. Pest and `scripts/php-gate.sh`
-are that check. Trivial one-liners need no test.
+smallest thing that fails if the logic breaks. Run the applicable named gate
+from the pinned `docs/playbook/quality.md`. Next-only uses frontend checks;
+PHP gates apply only to Laravel code. Trivial one-liners need no test.
 
 ## Boundaries
 

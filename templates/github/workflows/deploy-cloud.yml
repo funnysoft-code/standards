@@ -19,11 +19,19 @@ jobs:
     steps:
       - name: Report unconfigured deployment
         if: vars.DEPLOY_CLOUD_ENABLED != 'true'
-        run: echo 'Quality passed. Laravel Cloud deployment is unconfigured; connect the project and enable its deployment hook.'
-      - name: Trigger the manually connected Laravel Cloud environment
+        run: echo 'Quality passed. Laravel Cloud deployment is unconfigured; see docs/playbook/quality.md for revision-bound setup.'
+      - name: Request Cloud deployment of the checked revision
         if: vars.DEPLOY_CLOUD_ENABLED == 'true'
         env:
+          CHECKED_SHA: ${{ github.sha }}
           DEPLOY_HOOK_URL: ${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK_URL }}
         run: |
-          test -n "$DEPLOY_HOOK_URL" || { echo 'Configure the Laravel Cloud deployment hook first' >&2; exit 1; }
-          curl --fail --silent --show-error --output /dev/null --request POST "$DEPLOY_HOOK_URL"
+          set -euo pipefail
+          [[ "${CHECKED_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || { echo 'A full checked GitHub commit SHA is required' >&2; exit 1; }
+          [[ "${DEPLOY_HOOK_URL:-}" =~ ^https://[a-zA-Z0-9.-]+/[a-zA-Z0-9._~/-]+$ ]] || { echo 'Configure the raw HTTPS Cloud deploy hook URL without query parameters or a fragment' >&2; exit 1; }
+          # Cloud documents commit_hash as a query parameter, not a JSON body.
+          # Do not follow redirects or retry an ambiguously accepted deployment.
+          status="$(curl --disable --silent --output /dev/null --write-out '%{http_code}' \
+            --proto '=https' --connect-timeout 10 --max-time 60 --request POST \
+            "${DEPLOY_HOOK_URL}?commit_hash=${CHECKED_SHA}" 2>/dev/null)" || { echo 'Cloud deploy hook transport failed; inspect the provider before retrying' >&2; exit 1; }
+          [[ "$status" =~ ^2[0-9]{2}$ ]] || { echo 'Cloud deploy hook returned a non-2xx response; inspect provider configuration and deployment status' >&2; exit 1; }
