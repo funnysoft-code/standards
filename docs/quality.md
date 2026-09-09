@@ -60,6 +60,12 @@ with the existing directories in the include list below. Both Pest reports use
 that config. The temporary file is removed on success or failure. PHP requires
 the DOM extension; Pest requires PCOV and the type-coverage plugin.
 
+The coverage process sets `php -d zend.assertions=1` before loading Pest or
+application files. This keeps assertion lines executable and coverage consistent
+when the host uses `zend.assertions=-1`, which omits assertion code at compile
+time. This is a test-only CLI setting, not a production PHP policy. Both coverage
+thresholds remain 100%.
+
 Frontend lint checks formatting too. Typecheck runs in every declared JS root.
 Inertia first runs `wayfinder:generate --with-form` and `typescript:transform`.
 Vitest receives explicit authored-code includes and a 100% line threshold.

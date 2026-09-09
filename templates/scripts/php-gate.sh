@@ -19,7 +19,7 @@ run_pest() (
     trap 'rm -f "$config"' EXIT
     php "$root/scripts/php-coverage-config.php" "$config" '__PHP_ROOT__'
     # Both reports read exactly the same named product-code source list.
-    php -d pcov.directory="$PWD" -d pcov.initial.files=4096 vendor/bin/pest --configuration="$config" --compact --coverage --min=100
+    php -d zend.assertions=1 -d pcov.directory="$PWD" -d pcov.initial.files=4096 vendor/bin/pest --configuration="$config" --compact --coverage --min=100
     php vendor/bin/pest --configuration="$config" --type-coverage --min=100 --compact
 )
 case "$gate" in
