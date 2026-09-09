@@ -340,6 +340,14 @@ fi
       assert.equal(run('php-gate.sh', 'pest', { FAIL_MATCH: '--type-coverage' }).status, 37);
       assert.ok(!fs.readdirSync(phpRoot).some((file) => file.startsWith('.phpunit-quality.')));
     });
+    check(`${variant}: coverage enables assertions before loading Pest`, () => {
+      const r = run('php-gate.sh', 'pest'); assert.equal(r.status, 0, r.stderr);
+      const coverage = r.trace.trim().split('\n').filter((line) => line.includes(' --coverage '));
+      assert.equal(coverage.length, 1, r.trace);
+      assert.ok(coverage[0].startsWith(`${phpRoot}|php|-d zend.assertions=1 -d pcov.directory=${phpRoot} -d pcov.initial.files=4096 vendor/bin/pest `), coverage[0]);
+      assert.match(coverage[0], / --coverage --min=100$/);
+      assert.equal(run('php-gate.sh', 'pest', { FAIL_MATCH: '--coverage' }).status, 37);
+    });
     check(`${variant}: real coverage XML source selection`, () => {
       put(path.join(phpRoot, 'app/Providers/Example.php'), '<?php');
       put(path.join(phpRoot, 'routes/web.php'), '<?php');
