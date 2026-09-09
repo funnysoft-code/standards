@@ -160,7 +160,15 @@ reporting a release complete. Local validation cannot prove remote reachability.
 The binding is supported by the documented contract and mocked execution tests;
 a real-provider revision and rollout check remains part of release verification.
 
-Provider contracts checked on 2026-09-08. Vercel references:
+Vercel dependency installation runs before production settings are pulled.
+`VERCEL_TOKEN` is available only to the pull and deploy/promote steps, never to
+dependency installation or the application build. After `vercel pull` saves the
+project settings and build environment, `vercel build --prod` works without a
+deployment token. Keep deployment credentials out of project build environment
+variables too. Local token-free install/build was verified with Vercel CLI
+59.12.0; validate the exact `VERCEL_CLI_VERSION` configured for the project.
+
+Provider contracts checked on 2026-09-09. Vercel references:
 [prebuilt deployments](https://vercel.com/docs/cli/deploying-from-cli),
 [build](https://vercel.com/docs/cli/build), and
 [promote](https://vercel.com/docs/cli/promote).

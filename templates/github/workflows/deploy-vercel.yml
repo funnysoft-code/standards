@@ -17,7 +17,6 @@ jobs:
     timeout-minutes: 30
     environment: production
     env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
     steps:
@@ -33,7 +32,7 @@ jobs:
         if: vars.DEPLOY_VERCEL_ENABLED == 'true'
         with:
           bun-version: 1.4.0
-      - name: Build and promote the checked revision
+      - name: Install tooling for the checked revision
         if: vars.DEPLOY_VERCEL_ENABLED == 'true'
         env:
           CHECKED_SHA: ${{ github.sha }}
@@ -41,12 +40,31 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$CHECKED_SHA"
-          test -n "$VERCEL_TOKEN" && test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID" || { echo 'Configure the existing Vercel project IDs and token first' >&2; exit 1; }
+          test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID" || { echo 'Configure the existing Vercel project IDs first' >&2; exit 1; }
           [[ "$VERCEL_CLI_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Set VERCEL_CLI_VERSION to a verified exact version' >&2; exit 1; }
-          npm install --global "vercel@$VERCEL_CLI_VERSION"
+          npm install --global --ignore-scripts "vercel@$VERCEL_CLI_VERSION"
           bun install --frozen-lockfile
+      - name: Pull production project settings
+        if: vars.DEPLOY_VERCEL_ENABLED == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN" || { echo 'Configure the Vercel token first' >&2; exit 1; }
           vercel pull --yes --environment=production
+      - name: Build without deployment credentials
+        if: vars.DEPLOY_VERCEL_ENABLED == 'true'
+        run: |
+          set -euo pipefail
           vercel build --prod
+      - name: Deploy and promote the checked artifact
+        if: vars.DEPLOY_VERCEL_ENABLED == 'true'
+        env:
+          CHECKED_SHA: ${{ github.sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CHECKED_SHA"
           deployment_url="$(vercel deploy --prebuilt --prod --skip-domain --yes --meta "githubCommitSha=$CHECKED_SHA")"
           [[ "$deployment_url" =~ ^https://[a-zA-Z0-9.-]+\.vercel\.app$ ]] || { echo 'Vercel did not return a deployment URL' >&2; exit 1; }
           vercel promote "$deployment_url" --yes

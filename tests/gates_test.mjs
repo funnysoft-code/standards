@@ -276,33 +276,51 @@ exit "\${CURL_EXIT:-0}"
           assert.match(text, /build --prod/);
           assert.match(text, /deploy --prebuilt --prod --skip-domain/);
           assert.match(text, /promote/);
-          const step = deploy.jobs.deploy.steps.find((step) => step.name === 'Build and promote the checked revision');
+          const steps = deploy.jobs.deploy.steps.filter((step) => step.run && step.name !== 'Report unconfigured deployment');
           const deployBin = path.join(app, 'deploy-fixture-bin');
           for (const command of ['npm', 'bun', 'git', 'vercel']) put(path.join(deployBin, command), `#!/usr/bin/env bash
 set -eu
 name="$(basename "$0")"
 printf '%s %s\\n' "$name" "$*" >> "$TRACE"
 if [[ "$name" == git ]]; then printf '%s\\n' "$CHECKOUT_SHA"; fi
+if [[ "$name" == npm || "$name" == bun || ( "$name" == vercel && "$1" == build ) ]]; then
+  [[ -z "\${VERCEL_TOKEN:-}" ]] || { echo 'deployment authority exposed to install/build' >&2; exit 20; }
+fi
+if [[ "$name" == vercel && "$1" != build ]]; then
+  [[ -n "\${VERCEL_TOKEN:-}" ]] || { echo 'provider operation needs credentials' >&2; exit 21; }
+fi
+if [[ "$name" == vercel && "$1" == pull && "\${FAIL_PULL:-}" == true ]]; then exit 18; fi
+if [[ "$name" == vercel && "$1" == build && "\${FAIL_BUILD:-}" == true ]]; then exit 17; fi
 if [[ "$name" == vercel && "$1" == deploy ]]; then
   [[ "\${FAIL_UPLOAD:-}" != true ]] || exit 19
-  printf '%s\\n' 'https://checked-artifact.vercel.app'
+  printf '%s\\n' "\${DEPLOYMENT_URL:-https://checked-artifact.vercel.app}"
 fi
 `, 0o755);
           const invoke = (changes = {}) => {
             fs.writeFileSync(trace, '');
-            return spawnSync('bash', ['-c', step.run], { cwd: app, encoding: 'utf8', env: {
-              ...process.env, PATH: `${deployBin}:${process.env.PATH}`, TRACE: trace,
-              CHECKED_SHA: 'a'.repeat(40), CHECKOUT_SHA: 'a'.repeat(40), MOVING_MAIN_SHA: 'b'.repeat(40),
-              VERCEL_TOKEN: 'fixture', VERCEL_ORG_ID: 'existing-org', VERCEL_PROJECT_ID: 'existing-project', VERCEL_CLI_VERSION: '54.0.0', ...changes,
-            } });
+            const values = { CHECKED_SHA: 'a'.repeat(40), VERCEL_TOKEN: 'fixture', VERCEL_ORG_ID: 'existing-org', VERCEL_PROJECT_ID: 'existing-project', VERCEL_CLI_VERSION: '59.12.0', ...changes };
+            const resolveEnv = (env = {}) => Object.fromEntries(Object.keys(env).map((key) => [key, values[key]]));
+            const base = { ...process.env, PATH: `${deployBin}:${process.env.PATH}`, TRACE: trace,
+              CHECKOUT_SHA: 'a'.repeat(40), MOVING_MAIN_SHA: 'b'.repeat(40), ...changes };
+            delete base.VERCEL_TOKEN;
+            let result;
+            for (const step of steps) {
+              result = spawnSync('bash', ['-c', step.run], { cwd: app, encoding: 'utf8', env: {
+                ...base, ...resolveEnv(deploy.jobs.deploy.env), ...resolveEnv(step.env),
+              } });
+              if (result.status !== 0) break;
+            }
+            return result;
           };
           const success = invoke();
           assert.equal(success.status, 0, success.stderr);
           const calls = fs.readFileSync(trace, 'utf8');
           assert.match(calls, /deploy --prebuilt --prod --skip-domain --yes --meta githubCommitSha=a{40}/);
           assert.match(calls, /promote https:\/\/checked-artifact.vercel.app --yes/);
+          assert.ok(calls.indexOf('bun install') < calls.indexOf('vercel pull'));
+          assert.ok(calls.indexOf('vercel pull') < calls.indexOf('vercel build'));
           assert.doesNotMatch(calls, /b{40}/);
-          for (const changes of [{ CHECKOUT_SHA: 'b'.repeat(40) }, { VERCEL_PROJECT_ID: '' }, { VERCEL_CLI_VERSION: 'latest' }, { FAIL_UPLOAD: 'true' }]) {
+          for (const changes of [{ CHECKOUT_SHA: 'b'.repeat(40) }, { VERCEL_PROJECT_ID: '' }, { VERCEL_TOKEN: '' }, { VERCEL_CLI_VERSION: 'latest' }, { FAIL_PULL: 'true' }, { FAIL_BUILD: 'true' }, { FAIL_UPLOAD: 'true' }, { DEPLOYMENT_URL: 'https://unexpected.example.com' }]) {
             assert.notEqual(invoke(changes).status, 0);
             assert.doesNotMatch(fs.readFileSync(trace, 'utf8'), /vercel promote/);
           }
