@@ -1,8 +1,3 @@
----
-description: Adversarial reviewer for plans, docs, and diffs. Dispatch when __TEAM__ implementation is finished.
-mode: subagent
----
-
 # Adversary
 
 Attack the work. Do not polish it.

@@ -34,7 +34,7 @@ Finished __TEAM__ work needs an adversary `approve` on a recorded SHA before the
 
 Every adversary dispatch must use the model configured by the coordinator's environment. Do not silently inherit an incidental worker model or substitute an unconfigured route.
 
-OpenCode is the only process harness. Dispatch the `adversary` subagent.
+Use the provider selected in T3 Code or the standalone CLI. Dispatch its native `adversary` subagent when available. Otherwise pass `.agents/reviewers/adversary.md` to a supported read-only subagent. If the provider cannot delegate, return the review requirement to the coordinator. Never silently skip review.
 
 The verdict names the SHA. Findings are Critical, High, Medium, or Low. `approve` with leftover Medium or higher findings is not a pass. Fix every Critical, High, and Medium finding, then re-dispatch on the new SHA. The recorded `approve` that opens the PR may list Low findings only. Linear comments are for owner leans and findings that change the work, not process status.
 
@@ -60,7 +60,7 @@ After any owner correction or discovered miss, run the `retro` skill.
 
 Keep the harness thin. Prefer editing an existing rule or skill over adding a new one.
 
-Laptop API is Herd. Do not use Sail. Cursor Cloud is out. Do not add Cursor, Grok Build, Codex, or Claude trees.
+Laptop API is Herd. Do not use Sail. Cursor Cloud is out. `AGENTS.md` and `.agents/` own shared policy. Provider-native files are generated adapters; run `node scripts/provider-sync.mjs --check` to detect drift.
 
 Loose idea: do not auto-run grilling. Pause and ask the owner to invoke it. Do not switch to the plan agent during a grill. Grill is inquiry; plan rushes a plan.
 

@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "assetSets": {
     "harness": [
-      { "source": "templates/harness", "destination": ".", "exclude": [".opencode/rules/laravel-api.md", "opencode.json"], "text": true },
+      { "source": "templates/harness", "destination": ".", "exclude": [".agents/rules/laravel-api.md", ".agents/mcp.json"], "text": true },
+      { "source": "scripts/provider-sync.mjs", "destination": "scripts/provider-sync.mjs", "text": true },
       { "source": "templates/scripts/lint-commit-msg.sh", "destination": "scripts/lint-commit-msg.sh", "text": true },
       { "source": "templates/scripts/frontend-gate.sh", "destination": "scripts/frontend-gate.sh", "text": true },
       { "source": "templates/scripts/screenshot.sh", "destination": "scripts/screenshot.sh", "text": true },
@@ -12,12 +13,12 @@
       { "source": "docs", "destination": "docs/playbook", "exclude": ["plans", "superpowers"], "text": true }
     ],
     "laravel": [
-      { "source": "templates/harness/opencode.json", "destination": "opencode.json", "text": true },
-      { "source": "templates/harness/.opencode/rules/laravel-api.md", "destination": ".opencode/rules/laravel-api.md", "text": true },
+      { "source": "templates/harness/.agents/mcp.json", "destination": ".agents/mcp.json", "text": true },
+      { "source": "templates/harness/.agents/rules/laravel-api.md", "destination": ".agents/rules/laravel-api.md", "text": true },
       { "source": "templates/scripts/php-gate.sh", "destination": "scripts/php-gate.sh", "text": true },
       { "source": "templates/scripts/php-coverage-config.php", "destination": "scripts/php-coverage-config.php", "text": true },
       { "source": "templates/scripts/boost-sync-opencode-skills.sh", "destination": "scripts/boost-sync-opencode-skills.sh", "text": true },
-      { "source": "packages/boost-guidelines/resources/boost/skills", "destination": ".opencode/skills", "text": true },
+      { "source": "packages/boost-guidelines/resources/boost/skills", "destination": ".agents/skills", "text": true },
       { "source": "templates/github/workflows/deploy-cloud.yml", "destination": ".github/workflows/deploy-cloud.yml", "text": true },
       { "source": "packages/boost-guidelines", "destination": "__PHP_ROOT__/packages/boost-guidelines", "text": true }
     ],
@@ -34,18 +35,18 @@
     ],
     "next-tooling": [
       { "source": "templates/github/workflows/deploy-vercel.yml", "destination": ".github/workflows/deploy-vercel.yml", "text": true },
-      { "source": "templates/harness-next/opencode.json", "destination": "opencode.json", "text": true },
+      { "source": "templates/harness-next/mcp.json", "destination": ".agents/mcp.json", "text": true },
       { "source": "templates/lefthook-next.yml", "destination": "lefthook.yml", "text": true },
       { "source": "templates/github/workflows/quality-next.yml", "destination": ".github/workflows/quality.yml", "text": true }
     ]
   },
   "variants": {
     "inertia-monolith": {
-      "layout": { "phpRoot": ".", "jsRoots": ["."], "designRoot": "design", "boostArtisan": "artisan", "boostSkills": ".opencode/skills" },
+      "layout": { "phpRoot": ".", "jsRoots": ["."], "designRoot": "design", "boostArtisan": "artisan", "boostSkills": ".agents/skills" },
       "assetSets": ["harness", "playbook", "laravel", "inertia-tooling"]
     },
     "api-next": {
-      "layout": { "phpRoot": "services/api", "jsRoots": ["apps/web", "packages/api-client", "packages/design-system"], "designRoot": "packages/design-system", "boostArtisan": "services/api/artisan", "boostSkills": "services/api/.opencode/skills" },
+      "layout": { "phpRoot": "services/api", "jsRoots": ["apps/web", "packages/api-client", "packages/design-system"], "designRoot": "packages/design-system", "boostArtisan": "services/api/artisan", "boostSkills": "services/api/.agents/skills" },
       "assetSets": ["harness", "playbook", "laravel", "api-tooling"]
     },
     "next-only": {

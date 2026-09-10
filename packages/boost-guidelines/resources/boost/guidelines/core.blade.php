@@ -7,7 +7,7 @@
 - Public identifiers are UUIDs. Integer `id` never appears in HTTP, OpenAPI, or filters.
 - The short root `AGENTS.md` belongs to the product. Do not replace it with generated guidelines.
 - Run the repository's `scripts/php-gate.sh all` and applicable frontend gates. Missing dependencies fail the gate. PHP gates include 100% line and type coverage of named product code.
-- Boost skills are real files at the repository root `.opencode/skills`, including when Laravel lives in `services/api`.
+- Boost skills are real files at the repository root `.agents/skills`, including when Laravel lives in `services/api`. Run provider sync after Boost updates to refresh native discovery files.
 - Shared account policy lives in the pinned playbook. Registration defaults off in `config/funnysoft.php`; verification also applies to provisioned users. Accounts are individual users, with passkeys and optional authenticator 2FA.
 
 @if(! $assist->hasPackage('inertiajs/inertia-laravel'))

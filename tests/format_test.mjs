@@ -14,7 +14,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'standards-format-'));
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', ...options });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.status, 0, result.stderr + result.stdout);
   return result.stdout;
 }
 function put(file, content, mode = 0o644) {
@@ -42,7 +42,7 @@ try {
     const receipt = JSON.parse(fs.readFileSync(path.join(app, 'STANDARDS_MANIFEST.json')));
     assert.deepEqual(receipt, { schemaVersion: 1, standards: manifest.standards, assetDigest, variant, layout: manifest.variants[variant].layout, local: false });
     run(formatter, ['--check', ...files.filter((file) => /\.(?:md|json|mjs|yml)$/.test(file))], { cwd: app });
-    const linear = fs.readFileSync(path.join(app, '.opencode/skills/linear/SKILL.md'), 'utf8');
+    const linear = fs.readFileSync(path.join(app, '.agents/skills/linear/SKILL.md'), 'utf8');
     assert.ok(linear.includes('A `F7T` blocker'));
     assert.ok(linear.includes('(`F7T-nnn`)'));
     assert.doesNotMatch(linear, /__TEAM__|\*\*TEAM\*\*/);
@@ -51,11 +51,11 @@ try {
 
   for (const variant of ['inertia-monolith', 'api-next']) {
     const app = path.join(tmp, 'boost-' + variant);
-    applyExport({ exportRoot: bundle, target: app, variant, team: 'F7T', teamSlug: 'f7t', productBlurb: 'Fixture' });
+    applyExport({ exportRoot: bundle, target: app, variant, team: 'F7T', teamSlug: 'f7t', productBlurb: 'Fixture', expectedDigest: assetDigest });
     put(path.join(app, 'package.json'), '{"name":"formatter-fixture","private":true}\n');
     const phpRoot = variant === 'api-next' ? path.join(app, 'services/api') : app;
-    const generated = path.join(phpRoot, '.opencode/skills');
-    const destination = path.join(app, '.opencode/skills');
+    const generated = path.join(phpRoot, '.agents/skills');
+    const destination = path.join(app, '.agents/skills');
     const brief = 'Short product brief\n';
     put(path.join(app, 'AGENTS.md'), brief);
     put(path.join(app, 'boost.json'), '{"agents":["opencode"],"skills":["pest-testing"]}');
@@ -102,7 +102,7 @@ try {
     assert.ok(!fs.existsSync(path.join(phpRoot, '.ai')));
     result = invoke();
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8'), brief);
+    assert.ok(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8').startsWith(brief));
     assert.deepEqual(fs.readFileSync(path.join(app, 'untouched-policy.md')), policy);
     assert.ok(!fs.lstatSync(path.join(generated, 'pest-testing/references')).isSymbolicLink());
     assert.ok(!fs.lstatSync(path.join(destination, 'pest-testing/references')).isSymbolicLink());
@@ -121,9 +121,19 @@ try {
     // Cloud precedence is retained and its app-local source is formatted too.
     const cloud = path.join(phpRoot, '.ai/skills/pest-testing');
     put(path.join(cloud, 'SKILL.md'), '# Cloud override\n\nUse *Cloud*.\n');
+    // New Boost releases can replace a canonical skill with an app-local link.
+    const canonicalSkill = path.join(destination, 'pest-testing');
+    fs.rmSync(canonicalSkill, { recursive: true });
+    fs.symlinkSync(cloud, canonicalSkill);
     result = invoke();
     assert.equal(result.status, 0, result.stderr);
+    assert.ok(!fs.lstatSync(canonicalSkill).isSymbolicLink());
     assert.equal(fs.readFileSync(path.join(destination, 'pest-testing/SKILL.md'), 'utf8'), '# Cloud override\n\nUse _Cloud_.\n');
+    for (const provider of ['.claude', '.grok']) {
+      assert.equal(fs.readFileSync(path.join(app, provider, 'skills/pest-testing/SKILL.md'), 'utf8'), '# Cloud override\n\nUse _Cloud_.\n');
+    }
+    const providerCheck = spawnSync(process.execPath, [path.join(app, 'scripts/provider-sync.mjs'), '--root', app, '--check'], { encoding: 'utf8' });
+    assert.equal(providerCheck.status, 0, providerCheck.stderr || providerCheck.stdout);
     run(selectedFormatter, [...(toolName === 'vp' ? ['fmt'] : []), '--check', cloud, ...paths], { cwd: app });
     const invalidDirectory = path.join(phpRoot, '.ai/skills/invalid');
     fs.mkdirSync(invalidDirectory);
@@ -138,7 +148,7 @@ try {
     const brokenSet = snapshot();
     result = invoke();
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /SKILL.md missing/);
+    assert.match(result.stderr, /dangling or cyclic symlink/);
     assert.deepEqual(snapshot(), brokenSet);
     fs.unlinkSync(broken);
     // Root symlinks are forbidden even though individual skills can be linked.

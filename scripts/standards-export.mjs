@@ -129,6 +129,33 @@ export function createExport({ sourceRoot, target, release, commit, local = fals
         collect();
       }
     }
+    // Generate native adapters before hashing the export. Their bytes are part
+    // of the same immutable contract, not an unverified post-stamp side effect.
+    const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'standards-providers-'));
+    try {
+      for (const asset of assets) {
+        const item = output.find((candidate) => candidate.source === asset.source);
+        const dest = path.join(staging, asset.path);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, item.bytes, { mode: asset.mode });
+      }
+      execFileSync(process.execPath, [path.join(staging, 'scripts/provider-sync.mjs'), '--root', staging], { stdio: 'pipe' });
+      function collectAdapters(directory = '') {
+        for (const entry of fs.readdirSync(path.join(staging, directory), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+          const relative = path.posix.join(directory, entry.name);
+          if (entry.isDirectory()) { collectAdapters(relative); continue; }
+          if (seen.has(relative)) continue;
+          const bytes = fs.readFileSync(path.join(staging, relative));
+          const exported = `variants/${variant}/files/${relative}`;
+          const mode = fs.statSync(path.join(staging, relative)).mode & 0o111 ? 0o755 : 0o644;
+          assets.push({ path: relative, source: exported, sha256: hash(bytes), mode, text: !bytes.includes(0) });
+          output.push({ source: exported, bytes });
+        }
+      }
+      collectAdapters();
+    } finally {
+      fs.rmSync(staging, { recursive: true, force: true });
+    }
     assets.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
     manifest.variants[variant] = { layout: selected.layout, assetSets: selected.assetSets, assets };
   }
@@ -174,6 +201,7 @@ export function applyExport({ exportRoot, target, variant, team, teamSlug, produ
   if (!variants.includes(variant)) fail(`unknown variant: ${variant}`);
   if (![target, team, teamSlug, productBlurb].every((value) => typeof value === 'string' && value.length)) fail('target, team, team-slug and product-blurb are required');
   const manifest = verifyExport(exportRoot, expectedDigest, { allowLocal });
+  if (!manifest.local && expectedDigest === undefined) fail('expected digest is required for nonlocal export application');
   const selected = manifest.variants[variant];
   const tokens = { __TEAM__: team, __TEAM_SLUG__: teamSlug, __PRODUCT_BLURB__: productBlurb };
   const writes = selected.assets.map((asset) => {
@@ -186,14 +214,64 @@ export function applyExport({ exportRoot, target, variant, team, teamSlug, produ
     }
     return { path: asset.path, mode: asset.mode, bytes };
   });
+  // A product brief is authored, while the small instruction bridge is managed.
+  const entry = writes.find((item) => item.path === 'AGENTS.md');
+  if (entry && fs.existsSync(regularPath(target, 'AGENTS.md', true))) {
+    let existing = fs.readFileSync(path.join(target, 'AGENTS.md'), 'utf8')
+      .replaceAll('.opencode/rules', '.agents/rules').replaceAll('.opencode/skills', '.agents/skills');
+    const pattern = /<!-- funnysoft-provider-sync:start -->[\s\S]*?<!-- funnysoft-provider-sync:end -->/;
+    const block = entry.bytes.toString().match(pattern)?.[0];
+    if (!block) fail('missing canonical instruction bridge');
+    const starts = existing.split('<!-- funnysoft-provider-sync:start -->').length - 1;
+    const ends = existing.split('<!-- funnysoft-provider-sync:end -->').length - 1;
+    const markers = existing.split('<!-- funnysoft-provider-sync:').length - 1;
+    if (markers && (starts !== 1 || ends !== 1 || markers !== 2 || !pattern.test(existing))) fail('malformed provider-sync markers in AGENTS.md');
+    existing = pattern.test(existing) ? existing.replace(pattern, () => block) : `${existing.trimEnd()}\n\n${block}\n`;
+    entry.bytes = Buffer.from(existing);
+  }
+  // Team substitution changes native skill bytes. Bind the adapter receipt to
+  // those final bytes, retaining the immutable export digest in its own receipt.
+  const providerReceipt = writes.find((item) => item.path === '.agents/provider-sync.json');
+  const generatedProviderPaths = new Set();
+  if (providerReceipt) {
+    const receipt = JSON.parse(providerReceipt.bytes);
+    for (const name of Object.keys(receipt.generated)) {
+      generatedProviderPaths.add(name);
+      const item = writes.find((candidate) => candidate.path === name);
+      if (!item) fail(`missing generated provider asset: ${name}`);
+      receipt.generated[name] = hash(item.bytes);
+    }
+    providerReceipt.bytes = Buffer.from(receiptJSON(receipt) + '\n');
+  }
   writes.push({ path: 'STANDARDS_VERSION', bytes: Buffer.from(manifest.standards.release + '\n'), mode: 0o644 });
   writes.push({ path: 'STANDARDS_MANIFEST.json', bytes: Buffer.from(receiptJSON({ schemaVersion: 1, standards: manifest.standards, assetDigest: manifest.assetDigest, variant, layout: selected.layout, local: manifest.local }) + '\n'), mode: 0o644 });
   for (const item of writes) {
     const dest = regularPath(target, item.path, true);
     if (fs.existsSync(dest) && !fs.statSync(dest).isFile()) fail(`target is not a file: ${item.path}`);
+    if (fs.existsSync(dest)) fs.readFileSync(dest);
     let parent = path.dirname(dest);
     while (!fs.existsSync(parent)) parent = path.dirname(parent);
     if (!fs.statSync(parent).isDirectory()) fail(`target parent is not a directory: ${item.path}`);
+  }
+  // Native provider files can contain product-specific settings that cannot be
+  // reconstructed from an export. Refuse a non-identical replacement rather
+  // than guessing at a merge or discarding provider-sync preservation state.
+  const protectedProviderPaths = new Set([
+    '.agents/provider-sync.json',
+    '.mcp.json',
+    'opencode.json',
+    '.cursor/mcp.json',
+    '.grok/config.toml',
+    '.codex/config.toml',
+    ...generatedProviderPaths,
+  ]);
+  protectedProviderPaths.delete('AGENTS.md');
+  for (const item of writes) {
+    if (!protectedProviderPaths.has(item.path) && !/(^|\/)CLAUDE\.md$/.test(item.path)) continue;
+    const dest = path.join(target, item.path);
+    if (fs.existsSync(dest) && !fs.readFileSync(dest).equals(item.bytes)) {
+      fail(`provider reconciliation required before export apply: ${item.path}`);
+    }
   }
   for (const item of writes) {
     const dest = path.join(target, item.path);
@@ -227,6 +305,7 @@ function main() {
   let exportRoot = options['from-export'];
   let temporary;
   let local = false;
+  let expectedDigest = options['expected-digest'];
   try {
     if (!exportRoot) {
       if (command === 'apply') fail('--from-export is required');
@@ -240,10 +319,11 @@ function main() {
       if (!local && ['boost-artisan', 'design-root', 'laravel-globs'].some((key) => options[key])) fail('layout overrides are only supported by legacy local stamping');
       temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'standards-export-'));
       exportRoot = path.join(temporary, 'bundle');
-      createExport({ sourceRoot, target: exportRoot, release, commit, local, legacyOverrides: { boostArtisan: options['boost-artisan'], designRoot: options['design-root'], laravelGlobs: options['laravel-globs'] } });
+      const created = createExport({ sourceRoot, target: exportRoot, release, commit, local, legacyOverrides: { boostArtisan: options['boost-artisan'], designRoot: options['design-root'], laravelGlobs: options['laravel-globs'] } });
+      expectedDigest = created.assetDigest;
     } else if (options.release || options.commit) fail('identity comes from --from-export');
     if (options['from-export'] && ['boost-artisan', 'design-root', 'laravel-globs'].some((key) => options[key])) fail('export layout cannot be overridden');
-    applyExport({ exportRoot, target: options.target, variant, team: options.team, teamSlug: options['team-slug'], productBlurb: options['product-blurb'], expectedDigest: options['expected-digest'], allowLocal: local });
+    applyExport({ exportRoot, target: options.target, variant, team: options.team, teamSlug: options['team-slug'], productBlurb: options['product-blurb'], expectedDigest, allowLocal: local });
     console.log(`stamped ${variant} -> ${options.target}`);
   } finally {
     if (temporary) fs.rmSync(temporary, { recursive: true, force: true });

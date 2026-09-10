@@ -17,7 +17,7 @@ AGENTS.md in a product is short. It points at the playbook pin, the variant doc,
 | Doc                                                          | Purpose                                                           |
 | ------------------------------------------------------------ | ----------------------------------------------------------------- |
 | [engineering.md](engineering.md)                             | Nets, git, review, adversary, PHP conventions, definition of done |
-| [harness.md](harness.md)                                     | OpenCode tree, Boost vs process, overlay, retro                   |
+| [harness.md](harness.md)                                     | Shared instructions, provider sync, Boost, review                 |
 | [design.md](design.md)                                       | Visual loop, mock store, screenshots                              |
 | [quality.md](quality.md)                                     | Named gates and product-code include lists                        |
 | [variants/inertia-monolith.md](variants/inertia-monolith.md) | Laravel + Inertia + React                                         |
@@ -66,13 +66,15 @@ An export contains:
 
 `assetDigest` is SHA-256 of `JSON.stringify` of the parsed manifest with `assetDigest` omitted, retaining property order. It binds identity, layouts, asset paths, text policies, modes, asset hashes, and runtime hash. Consumers must pin this digest in their release manifest. Every asset in all three variants and the runtime is checked before target writes. Unsupported schemas, malformed paths, missing files, or mismatched hashes fail.
 
-U3 can import `verifyExport(exportRoot, expectedDigest)` and `applyExport({ exportRoot, target, variant, team, teamSlug, productBlurb, expectedDigest })` from the bundled `apply.mjs`, or invoke `node apply.mjs apply --from-export ...` with the stamp flags above. The package release must validate the bundle before trusting its executable runtime. Apply writes only declared asset paths and the two standards identity files. It preserves unrelated target files, including binary assets and product scripts. It rejects symlink destinations.
+U3 can import `verifyExport(exportRoot, expectedDigest)` and `applyExport({ exportRoot, target, variant, team, teamSlug, productBlurb, expectedDigest })` from the bundled `apply.mjs`, or invoke `node apply.mjs apply --from-export ...` with the stamp flags above. The package release must validate the bundle before trusting its executable runtime. Apply writes only declared asset paths and the two standards identity files. It preserves unrelated target files, including binary assets and product scripts. It rejects symlink destinations. Existing root `AGENTS.md` content is preserved, with legacy rule paths updated and the managed shared-instruction block appended or refreshed.
+
+Export creation runs the bundled dependency-free provider generator in an isolated staging directory. All generated native adapters and their receipt enter the hashed export. Apply recalculates provider-file hashes after team-token substitution. `STANDARDS_MANIFEST.json` still binds the original export, while `.agents/provider-sync.json` binds generated adapters. Run `node scripts/provider-sync.mjs --check` in the product after applying. Existing scoped `AGENTS.md` files need one sync run to create their Claude bridges. Existing-product migration uses provider sync directly, not a blanket restamp of product scripts. See [harness.md](harness.md).
 
 The generated `STANDARDS_MANIFEST.json` records `schemaVersion`, `standards`, `assetDigest`, `variant`, `layout`, and `local`. Generator/template identity belongs to the generator's own release receipt; it must not be guessed by standards.
 
 Receipt JSON uses two-space object indentation and compact primitive arrays for
 the declared layouts. Stamping needs no formatter or installed product packages.
-Before advancing an export, run `bash tests/stamp_test.sh`,
+Before advancing an export, run `node tests/provider_sync_test.mjs`, `bash tests/stamp_test.sh`,
 `bash tests/gates_test.sh /path/to/installed/@playwright/test`, and
 `node tests/format_test.mjs /path/to/installed/oxfmt` from this repository.
 The formatter fixture checks all three stamped layouts and receipt semantics,

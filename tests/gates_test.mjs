@@ -17,6 +17,20 @@ function put(file, text, mode = 0o644) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, text, { mode });
 }
+function treeSnapshot(directory, relative = '') {
+  return fs.readdirSync(path.join(directory, relative), { withFileTypes: true })
+    .filter((entry) => !(relative === '' && entry.name === 'trace'))
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const name = path.join(relative, entry.name);
+      const file = path.join(directory, name);
+      const stat = fs.lstatSync(file);
+      if (stat.isDirectory()) return [[name, 'directory'], ...treeSnapshot(directory, name)];
+      if (stat.isSymbolicLink()) return [[name, `link:${fs.readlinkSync(file)}`]];
+      if (stat.isFile()) return [[name, `file:${fs.readFileSync(file, 'base64')}`]];
+      return [[name, `special:${stat.mode}`]];
+    });
+}
 const tool = `#!/usr/bin/env bash
 set -euo pipefail
 name="$(basename "$0")"
@@ -96,10 +110,10 @@ fi
 }
 try {
   const bundle = path.join(tmp, 'export');
-  createExport({ sourceRoot: root, target: bundle, release: 'v0.0.0-fixture', commit: '0'.repeat(40) });
+  const exportManifest = createExport({ sourceRoot: root, target: bundle, release: 'v0.0.0-fixture', commit: '0'.repeat(40) });
   for (const variant of ['next-only', 'inertia-monolith', 'api-next']) {
     const app = path.join(tmp, variant + ' with spaces');
-    applyExport({ exportRoot: bundle, target: app, variant, team: 'F7T', teamSlug: 'f7t', productBlurb: 'Fixture' });
+    applyExport({ exportRoot: bundle, target: app, variant, team: 'F7T', teamSlug: 'f7t', productBlurb: 'Fixture', expectedDigest: exportManifest.assetDigest });
     const api = variant === 'api-next';
     const phpRoot = api ? path.join(app, 'services/api') : app;
     if (variant !== 'next-only') {
@@ -155,14 +169,14 @@ try {
       assert.equal(run('frontend-gate.sh', 'doctor', { FAIL_MATCH: 'react-doctor' }).status, 37);
     });
     check(`${variant}: unknown gate`, () => assert.equal(run('frontend-gate.sh', 'unknown').status, 2));
-    check(`${variant}: V2 MCP`, () => {
+    check(`${variant}: V1 and V2 compatible MCP`, () => {
       const c = JSON.parse(fs.readFileSync(path.join(app, 'opencode.json')));
-      assert.ok(c.mcp.servers.mobbin);
-      for (const server of Object.values(c.mcp.servers)) assert.ok(!('enabled' in server));
-      assert.equal(Boolean(c.mcp.servers['laravel-boost']), variant !== 'next-only');
+      assert.ok(c.mcp.mobbin);
+      assert.ok(!c.mcp.servers);
+      assert.equal(Boolean(c.mcp['laravel-boost']), variant !== 'next-only');
     });
     check(`${variant}: shared rule names the applicable pinned quality gate`, () => {
-      const rule = fs.readFileSync(path.join(app, '.opencode/rules/ponytail.md'), 'utf8');
+      const rule = fs.readFileSync(path.join(app, '.agents/rules/ponytail.md'), 'utf8');
       assert.match(rule, /docs\/playbook\/quality.md/);
       assert.doesNotMatch(rule, /Pest and `scripts\/php-gate.sh`/);
     });
@@ -368,26 +382,26 @@ fi
       finally { fs.renameSync(file + '.off', file); }
     });
     if (!api) check('inertia-monolith: Boost already uses root, no Cloud tree', () => {
-      put(path.join(app, '.opencode/skills/pest-testing/SKILL.md'), 'Pest skill\n');
+      put(path.join(app, '.agents/skills/pest-testing/SKILL.md'), 'Pest skill\n');
       assert.ok(!fs.existsSync(path.join(app, '.ai')));
       const r = run('boost-sync-opencode-skills.sh');
       assert.equal(r.status, 0, r.stderr);
-      assert.equal(fs.readFileSync(path.join(app, '.opencode/skills/pest-testing/SKILL.md'), 'utf8'), 'Pest skill\n');
+      assert.equal(fs.readFileSync(path.join(app, '.agents/skills/pest-testing/SKILL.md'), 'utf8'), 'Pest skill\n');
     });
     check(`${variant}: Boost real root files, repeatable, brief preserved`, () => {
       put(path.join(app, 'AGENTS.md'), 'Short product brief\n');
       put(path.join(phpRoot, '.ai/skills/cloud-deploy/SKILL.md'), 'Cloud skill\n');
-      fs.symlinkSync(path.join(phpRoot, '.ai/skills/cloud-deploy'), path.join(app, '.opencode/skills/cloud-deploy'));
+      fs.symlinkSync(path.join(phpRoot, '.ai/skills/cloud-deploy'), path.join(app, '.agents/skills/cloud-deploy'));
       const r = run('boost-sync-opencode-skills.sh'); assert.equal(r.status, 0, r.stderr);
-      assert.equal(fs.lstatSync(path.join(app, '.opencode/skills/cloud-deploy')).isSymbolicLink(), false);
-      assert.equal(fs.readFileSync(path.join(app, '.opencode/skills/cloud-deploy/SKILL.md'), 'utf8'), 'Cloud skill\n');
-      assert.equal(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8'), 'Short product brief\n');
-      assert.ok(fs.existsSync(path.join(app, '.opencode/skills/grilling/SKILL.md')));
+      assert.equal(fs.lstatSync(path.join(app, '.agents/skills/cloud-deploy')).isSymbolicLink(), false);
+      assert.equal(fs.readFileSync(path.join(app, '.agents/skills/cloud-deploy/SKILL.md'), 'utf8'), 'Cloud skill\n');
+      assert.ok(fs.readFileSync(path.join(app, 'AGENTS.md'), 'utf8').startsWith('Short product brief\n'));
+      assert.ok(fs.existsSync(path.join(app, '.agents/skills/grilling/SKILL.md')));
       assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
     });
-    check(`${variant}: Boost missing formatter, error propagation and vp fallback`, () => {
+    check(`${variant}: Boost missing formatter, preferred formatter failure and fallback`, () => {
       const tools = ['oxfmt', 'vp'].map((name) => path.join(app, 'node_modules/.bin', name));
-      const skill = path.join(app, '.opencode/skills/cloud-deploy/SKILL.md');
+      const skill = path.join(app, '.agents/skills/cloud-deploy/SKILL.md');
       const before = fs.readFileSync(skill);
       for (const file of tools) fs.renameSync(file, file + '.off');
       try {
@@ -396,28 +410,197 @@ fi
         assert.match(missing.stderr, /formatter missing/);
         assert.deepEqual(fs.readFileSync(skill), before);
       } finally { for (const file of tools) fs.renameSync(file + '.off', file); }
-      assert.equal(run('boost-sync-opencode-skills.sh', '', { FAIL_MATCH: 'oxfmt' }).status, 37);
+      assert.equal(run('boost-sync-opencode-skills.sh', '', { FAIL_MATCH: 'vp' }).status, 37);
       assert.deepEqual(fs.readFileSync(skill), before);
-      fs.renameSync(tools[0], tools[0] + '.off');
+      fs.renameSync(tools[1], tools[1] + '.off');
       try {
         const r = run('boost-sync-opencode-skills.sh');
         assert.equal(r.status, 0, r.stderr);
-        assert.match(r.trace, /\|vp\|fmt --stdin-filepath/);
-      } finally { fs.renameSync(tools[0] + '.off', tools[0]); }
+        assert.match(r.trace, /\|oxfmt\|--stdin-filepath/);
+      } finally { fs.renameSync(tools[1] + '.off', tools[1]); }
     });
     check(`${variant}: invalid Boost skill fails before replacement`, () => {
       const invalid = path.join(phpRoot, '.ai/skills/invalid');
       fs.mkdirSync(invalid);
       try {
         assert.notEqual(run('boost-sync-opencode-skills.sh').status, 0);
-        assert.equal(fs.readFileSync(path.join(app, '.opencode/skills/cloud-deploy/SKILL.md'), 'utf8'), 'Cloud skill\n');
+        assert.equal(fs.readFileSync(path.join(app, '.agents/skills/cloud-deploy/SKILL.md'), 'utf8'), 'Cloud skill\n');
       } finally { fs.rmSync(invalid, { recursive: true }); }
     });
     if (!api) continue;
     check('api-next: generated app skills also reach root', () => {
-      put(path.join(phpRoot, '.opencode/skills/pest-testing/SKILL.md'), 'Pest skill\n');
+      put(path.join(phpRoot, '.agents/skills/pest-testing/SKILL.md'), 'Pest skill\n');
       assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
-      assert.equal(fs.readFileSync(path.join(app, '.opencode/skills/pest-testing/SKILL.md'), 'utf8'), 'Pest skill\n');
+      assert.equal(fs.readFileSync(path.join(app, '.agents/skills/pest-testing/SKILL.md'), 'utf8'), 'Pest skill\n');
+    });
+    check('api-next: managed Boost skills update and delete without touching custom skills', () => {
+      const generatedSkill = path.join(phpRoot, '.agents/skills/managed-fixture');
+      const localSkill = path.join(phpRoot, '.ai/skills/managed-fixture');
+      const materialized = path.join(app, '.agents/skills/managed-fixture');
+      const custom = path.join(app, '.agents/skills/custom-fixture/SKILL.md');
+      put(custom, 'Custom skill\n');
+      put(path.join(generatedSkill, 'SKILL.md'), 'Generated v1\n');
+      let r = run('boost-sync-opencode-skills.sh');
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(fs.readFileSync(path.join(materialized, 'SKILL.md'), 'utf8'), 'Generated v1\n');
+      assert.equal(fs.readFileSync(custom, 'utf8'), 'Custom skill\n');
+
+      put(path.join(generatedSkill, 'SKILL.md'), 'Generated v2\n');
+      put(path.join(localSkill, 'SKILL.md'), 'App-local v2\n');
+      r = run('boost-sync-opencode-skills.sh');
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(fs.readFileSync(path.join(materialized, 'SKILL.md'), 'utf8'), 'App-local v2\n');
+
+      fs.rmSync(generatedSkill, { recursive: true });
+      fs.rmSync(localSkill, { recursive: true });
+      r = run('boost-sync-opencode-skills.sh');
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(fs.existsSync(materialized), false);
+      assert.equal(fs.readFileSync(custom, 'utf8'), 'Custom skill\n');
+    });
+    check('api-next: edited managed Boost destination refuses replacement', () => {
+      const generatedSkill = path.join(phpRoot, '.agents/skills/guarded-fixture/SKILL.md');
+      const materialized = path.join(app, '.agents/skills/guarded-fixture/SKILL.md');
+      put(generatedSkill, 'Managed v1\n');
+      assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
+      put(materialized, 'Custom edit\n');
+      put(generatedSkill, 'Managed v2\n');
+      const r = run('boost-sync-opencode-skills.sh');
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, /edited managed destination refuses replacement/);
+      assert.equal(fs.readFileSync(materialized, 'utf8'), 'Custom edit\n');
+      assert.equal(fs.readFileSync(generatedSkill, 'utf8'), 'Managed v2\n');
+      put(materialized, 'Managed v1\n');
+      assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
+      assert.equal(fs.readFileSync(materialized, 'utf8'), 'Managed v2\n');
+    });
+    check('api-next: interrupted receipt publication recovers exact desired output', () => {
+      const generatedSkill = path.join(phpRoot, '.agents/skills/recovery-fixture/SKILL.md');
+      const materialized = path.join(app, '.agents/skills/recovery-fixture/SKILL.md');
+      const receipt = path.join(app, '.agents/boost-sync-receipt.json');
+      put(generatedSkill, 'Recovery v1\n');
+      assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
+      const receiptV1 = fs.readFileSync(receipt);
+
+      put(generatedSkill, 'Recovery v2\n');
+      const realMktemp = spawnSync('which', ['mktemp'], { encoding: 'utf8' }).stdout.trim();
+      assert.ok(realMktemp);
+      const mktemp = path.join(bin, 'mktemp');
+      put(mktemp, `#!/usr/bin/env bash
+if [[ "$1" == */.agents/.boost-sync-receipt.* ]]; then exit 73; fi
+exec "${realMktemp}" "$@"
+`, 0o755);
+      let interrupted;
+      try { interrupted = run('boost-sync-opencode-skills.sh'); }
+      finally { fs.rmSync(mktemp); }
+      assert.equal(interrupted.status, 73, interrupted.stderr);
+      assert.equal(fs.readFileSync(materialized, 'utf8'), 'Recovery v2\n');
+      assert.deepEqual(fs.readFileSync(receipt), receiptV1);
+      assert.doesNotThrow(() => JSON.parse(fs.readFileSync(receipt, 'utf8')));
+
+      const recovered = run('boost-sync-opencode-skills.sh');
+      assert.equal(recovered.status, 0, recovered.stderr);
+      assert.equal(fs.readFileSync(materialized, 'utf8'), 'Recovery v2\n');
+      assert.notDeepEqual(fs.readFileSync(receipt), receiptV1);
+    });
+    check('api-next: unowned Boost destination collision refuses first materialization', () => {
+      const generatedSkill = path.join(phpRoot, '.agents/skills/collision-fixture/SKILL.md');
+      const destinationSkill = path.join(app, '.agents/skills/collision-fixture/SKILL.md');
+      put(generatedSkill, 'Generated skill\n');
+      put(destinationSkill, 'Custom skill\n');
+      const r = run('boost-sync-opencode-skills.sh');
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, /unowned destination collision refuses replacement/);
+      assert.equal(fs.readFileSync(generatedSkill, 'utf8'), 'Generated skill\n');
+      assert.equal(fs.readFileSync(destinationSkill, 'utf8'), 'Custom skill\n');
+      fs.rmSync(path.dirname(generatedSkill), { recursive: true });
+      fs.rmSync(path.dirname(destinationSkill), { recursive: true });
+    });
+    check('api-next: external Boost skill links fail before repository writes', () => {
+      const generatedSkills = path.join(phpRoot, '.agents/skills');
+      const external = path.join(tmp, 'external-host-skill');
+      put(path.join(external, 'SKILL.md'), 'External host content\n');
+
+      const topLevel = path.join(generatedSkills, 'external-top-level');
+      fs.symlinkSync(external, topLevel);
+      let before = treeSnapshot(app);
+      let r = run('boost-sync-opencode-skills.sh');
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, /symlink target escapes repository root/);
+      assert.equal(r.trace, '');
+      assert.deepEqual(treeSnapshot(app), before);
+      fs.unlinkSync(topLevel);
+
+      const nested = path.join(generatedSkills, 'external-nested');
+      put(path.join(nested, 'SKILL.md'), 'Nested fixture\n');
+      fs.symlinkSync(external, path.join(nested, 'references'));
+      before = treeSnapshot(app);
+      r = run('boost-sync-opencode-skills.sh');
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, /symlink target escapes repository root/);
+      assert.equal(r.trace, '');
+      assert.deepEqual(treeSnapshot(app), before);
+      fs.rmSync(nested, { recursive: true });
+    });
+    check('api-next: external metadata link fails before reads or formatting', () => {
+      const metadata = path.join(phpRoot, 'boost.json');
+      const backup = metadata + '.preflight-backup';
+      const external = path.join(tmp, 'external-boost.json');
+      put(external, '{"skills":["must-not-be-read"]}\n');
+      const hadMetadata = fs.existsSync(metadata);
+      if (hadMetadata) fs.renameSync(metadata, backup);
+      fs.symlinkSync(external, metadata);
+      try {
+        const before = treeSnapshot(app);
+        const r = run('boost-sync-opencode-skills.sh');
+        assert.notEqual(r.status, 0);
+        assert.match(r.stderr, /symlink root or parent|symlink target escapes repository root/);
+        assert.equal(r.trace, '');
+        assert.deepEqual(treeSnapshot(app), before);
+        assert.equal(fs.readFileSync(external, 'utf8'), '{"skills":["must-not-be-read"]}\n');
+      } finally {
+        fs.unlinkSync(metadata);
+        if (hadMetadata) fs.renameSync(backup, metadata);
+      }
+    });
+    check('api-next: dangling, cyclic and special Boost entries are rejected', () => {
+      const generatedSkills = path.join(phpRoot, '.agents/skills');
+      const invalid = path.join(generatedSkills, 'invalid-tree');
+      const invokeUnchanged = (pattern) => {
+        const before = treeSnapshot(app);
+        const r = run('boost-sync-opencode-skills.sh');
+        assert.notEqual(r.status, 0);
+        assert.match(r.stderr, pattern);
+        assert.equal(r.trace, '');
+        assert.deepEqual(treeSnapshot(app), before);
+      };
+
+      put(path.join(invalid, 'SKILL.md'), 'Invalid fixture\n');
+      fs.symlinkSync(path.join(app, 'missing-target'), path.join(invalid, 'dangling'));
+      invokeUnchanged(/dangling or cyclic symlink/);
+      fs.unlinkSync(path.join(invalid, 'dangling'));
+
+      fs.symlinkSync(invalid, path.join(invalid, 'recursive'));
+      invokeUnchanged(/cyclic directory symlink/);
+      fs.unlinkSync(path.join(invalid, 'recursive'));
+
+      const fifo = path.join(invalid, 'named-pipe');
+      const created = spawnSync('mkfifo', [fifo], { encoding: 'utf8' });
+      assert.equal(created.status, 0, created.stderr);
+      invokeUnchanged(/special file is not allowed/);
+      fs.rmSync(invalid, { recursive: true });
+    });
+    check('api-next: internal Boost links remain valid and are materialized', () => {
+      const shared = path.join(phpRoot, '.ai/shared-reference');
+      const generated = path.join(phpRoot, '.agents/skills/internal-link-fixture');
+      const materialized = path.join(app, '.agents/skills/internal-link-fixture');
+      put(path.join(shared, 'reference.md'), 'Internal reference\n');
+      put(path.join(generated, 'SKILL.md'), 'Internal link fixture\n');
+      fs.symlinkSync(shared, path.join(generated, 'references'));
+      const r = run('boost-sync-opencode-skills.sh');
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(fs.lstatSync(path.join(materialized, 'references')).isSymbolicLink(), false);
+      assert.equal(fs.readFileSync(path.join(materialized, 'references/reference.md'), 'utf8'), 'Internal reference\n');
     });
     check('api-next: real workflow registry parser', () => {
       fs.mkdirSync(path.join(app, 'node_modules/@playwright'), { recursive: true });

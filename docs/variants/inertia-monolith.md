@@ -2,7 +2,7 @@
 
 Laravel + Inertia + React 19 + Tailwind 4 + shadcn. Wayfinder. Spatie typescript-transformer. bun. vite-plus. Boost at repo root with `artisan`. Horizon. UUID primary keys allowed (`HasUuids`).
 
-Export variant: `inertia-monolith`. PHP and JS commands run at the repository root; frontend source is `resources/js`. Boost skills live in `.opencode/skills`, its guidelines package in `packages/boost-guidelines`, and design assets in `design`.
+Export variant: `inertia-monolith`. PHP and JS commands run at the repository root; frontend source is `resources/js`. Boost skills live in `.agents/skills`, its guidelines package in `packages/boost-guidelines`, and design assets in `design`.
 
 Playbook defaults in [engineering.md](../engineering.md). Gates and include lists in [quality.md](../quality.md).
 

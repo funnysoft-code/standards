@@ -80,15 +80,7 @@ linear project list --team __TEAM__
 
 Do not run `linear document create` or `linear document update`.
 
-## Git branches
-
-One branch per change issue: `type/__TEAM_SLUG__-NNN-short-description`. Create it when that issue's work starts. Do not wait for the owner to ask for a branch. Directory presence is not a switch. Do not stay on `main` because a folder is missing.
-
-A harness retro that exists because of current work stays on that work's branch. Same PR when the work ships. Never start unrelated work on a dirty `main`.
-
-Do not run `linear issue start` or `create --start`. Those commands create a git branch. Never create both an `__TEAM_SLUG__-NNN` branch and a `type/slug` branch for the same work. Do not invent a second branch for the same issue.
-
-Only the coordinator may commit and push, and only with owner authorization. Subagents return changes without mutating Git or lifecycle state. Merge still needs an explicit owner ask. Squash merge. The PR title is the final Conventional Commit. Delete the branch after merge.
+## Project status updates
 
 When a milestone completes, post a project status update on the current product project:
 

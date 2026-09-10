@@ -10,9 +10,10 @@ Keep them short. A reader decides in two minutes whether it affects them.
 
 ## Index
 
-| Number                                | Title                                | Status   | Date       |
-| ------------------------------------- | ------------------------------------ | -------- | ---------- |
-| [0001](0001-opencode-only-harness.md) | OpenCode is the only process harness | Accepted | 2026-09-02 |
+| Number                                   | Title                                               | Status     | Date       |
+| ---------------------------------------- | --------------------------------------------------- | ---------- | ---------- |
+| [0001](0001-opencode-only-harness.md)    | OpenCode is the only process harness                | Superseded | 2026-09-02 |
+| [0002](0002-shared-provider-adapters.md) | Shared instructions and generated provider adapters | Accepted   | 2026-09-10 |
 
 Status values: Proposed, Accepted, Superseded.
 

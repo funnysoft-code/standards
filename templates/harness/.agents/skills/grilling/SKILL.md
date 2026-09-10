@@ -12,7 +12,7 @@ This skill is user-invoked. If the owner has not asked to grill, do not start. P
 
 Ask the questions one at a time, waiting for feedback on each question before continuing. Asking multiple questions at once is bewildering.
 
-Ask each question using the AskQuestion tool (the built-in question/answer UI) rather than plain prose. Make your recommended answer the first option and append " (Recommended)" to its label. The owner can always pick "Other" to type a free-form answer.
+Ask each question using the selected provider's question tool when available, or plain prose when it has none. Make your recommended answer the first option and append " (Recommended)" to its label. Allow a free-form answer.
 
 If a question can be answered by exploring the codebase, explore the codebase instead.
 

@@ -15,7 +15,7 @@ Playbook process in [engineering.md](../engineering.md) and [harness.md](../harn
 - React Doctor zero warnings when the app uses React
 - Vitest 100% line coverage of authored `lib/` (and workspace packages when they exist)
 
-No PHP. No Horizon. No Boost. Stamp still copies the OpenCode tree, Lefthook, commit lint, and frontend gates that apply. The export omits PHP jobs, Composer packages, Boost commands, and Laravel-only rules. Copied playbook prose describes all stacks, but only this variant's executable assets apply.
+No PHP. No Horizon. No Boost. Stamp still copies shared instructions and provider adapters, Lefthook, commit lint, and frontend gates that apply. The export omits PHP jobs, Composer packages, Boost commands, and Laravel-only rules. Copied playbook prose describes all stacks, but only this variant's executable assets apply.
 
 ## Design
 
@@ -23,7 +23,7 @@ No PHP. No Horizon. No Boost. Stamp still copies the OpenCode tree, Lefthook, co
 
 ## Process
 
-One OpenCode tree. No symlinks. Linear CLI, not Linear MCP. Do not create or update Linear documents. Adversary on a recorded SHA before the PR. Squash merge. Owner merges.
+One canonical `AGENTS.md` and `.agents/` tree, with generated provider adapters. No symlinks. Linear CLI, not Linear MCP. Do not create or update Linear documents. Adversary on a recorded SHA before the PR. Squash merge. Owner merges.
 
 ## Deploy
 

@@ -2,7 +2,7 @@
 
 Project-agnostic engineering playbook for FunnySoft Laravel + React products.
 
-This repository is the source of truth for process, quality, the OpenCode harness, and stack variants. Product vision and named deviations live in the product repo.
+This repository is the source of truth for process, quality, shared agent instructions, provider adapters, and stack variants. Product vision and named deviations live in the product repo.
 
 The playbook is the SSOT. The design spec remains history.
 

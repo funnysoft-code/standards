@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "laravel-boost": {
+      "command": ["php", "__BOOST_ARTISAN__", "boost:mcp"]
+    },
+    "mobbin": {
+      "url": "https://api.mobbin.com/mcp"
+    }
+  }
+}
