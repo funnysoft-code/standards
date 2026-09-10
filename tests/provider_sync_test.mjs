@@ -231,6 +231,37 @@ try {
   const version = path.join(temporary, 'v2');
   put(version, 'opencode.json', '{"permissions":{}}');
   assert.match(run(version).stderr, /V2-only field/);
+  const ignoredClaude = path.join(temporary, 'ignored-claude');
+  put(ignoredClaude, 'AGENTS.md', '# Product\n');
+  put(ignoredClaude, 'apps/web/AGENTS.md', '# Next runtime prompt\n');
+  put(ignoredClaude, 'apps/web/.gitignore', 'CLAUDE.md\n');
+  assert.equal(spawnSync('git', ['init', '-q'], { cwd: ignoredClaude, encoding: 'utf8' }).status, 0);
+  put(
+    ignoredClaude,
+    '.agents/provider-sync.json',
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        generated: { 'apps/web/CLAUDE.md': '0'.repeat(64) },
+        servers: [],
+        mcpEntries: {},
+        preservedClaude: [],
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+  result = run(ignoredClaude);
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(
+    !fs.existsSync(path.join(ignoredClaude, 'apps/web/CLAUDE.md')),
+    'gitignored nested CLAUDE.md must not be generated',
+  );
+  receipt = JSON.parse(read(ignoredClaude, '.agents/provider-sync.json'));
+  assert.ok(!receipt.generated['apps/web/CLAUDE.md'], 'receipt must not claim a gitignored nested CLAUDE.md');
+  assert.ok(receipt.generated['CLAUDE.md']);
+  assert.equal(run(ignoredClaude, '--check').status, 0, 'clean checkout without gitignored CLAUDE.md must not report drift');
+
   const claude = path.join(temporary, 'claude');
   put(claude, 'AGENTS.md', '# Boost guidelines\n');
   put(claude, 'CLAUDE.md', '# Boost guidelines\n');

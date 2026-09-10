@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
@@ -69,6 +70,22 @@ export function syncProviders({ root = process.cwd(), check = false, preserveCla
     writes = new Map(),
     removals = new Set(),
     modes = new Map();
+  let insideGit;
+  function gitIgnored(name) {
+    if (insideGit === undefined) {
+      const probe = spawnSync("git", ["-C", root, "rev-parse", "--is-inside-work-tree"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      insideGit = probe.status === 0 && probe.stdout.trim() === "true";
+    }
+    if (!insideGit) return false;
+    return (
+      spawnSync("git", ["-C", root, "-c", "core.excludesFile=", "check-ignore", "-q", "--", name], {
+        stdio: "ignore",
+      }).status === 0
+    );
+  }
   function location(name) {
     if (
       !name ||
@@ -211,7 +228,7 @@ export function syncProviders({ root = process.cwd(), check = false, preserveCla
   discover();
   for (const scope of scopes.sort()) {
     const name = scope ? `${scope}/CLAUDE.md` : "CLAUDE.md";
-    if (preservedClaude.includes(name)) continue;
+    if (preservedClaude.includes(name) || gitIgnored(name)) continue;
     const instructions = scope ? `${scope}/AGENTS.md` : "AGENTS.md";
     const current = read(name);
     read(instructions);
@@ -452,7 +469,7 @@ export function syncProviders({ root = process.cwd(), check = false, preserveCla
   }
   // Remove only unchanged generated outputs whose canonical source was removed.
   for (const [name, checksum] of Object.entries(state.generated)) {
-    if (generated[name] || preservedClaude.includes(name)) continue;
+    if (generated[name] || preservedClaude.includes(name) || gitIgnored(name)) continue;
     const bytes = read(name);
     if (bytes && digest(bytes) !== checksum) fail(`edited generated file: ${name}`);
     if (bytes) removals.add(name);
