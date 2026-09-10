@@ -289,10 +289,11 @@ export function syncProviders({ root = process.cwd(), check = false, preserveCla
   if (Object.keys(canonical).some((key) => key !== "servers"))
     fail("unsupported .agents/mcp.json field");
   const servers = object(canonical.servers, ".agents/mcp.json servers");
-  const native = {},
-    open = {};
+  const native = Object.create(null),
+    open = Object.create(null);
   for (const [name, value] of Object.entries(servers).sort(([a], [b]) => a.localeCompare(b))) {
-    if (!/^[a-zA-Z0-9_-]+$/.test(name)) fail("invalid MCP server name");
+    if (!/^[a-zA-Z0-9_-]+$/.test(name) || ["__proto__", "prototype", "constructor"].includes(name))
+      fail("invalid MCP server name");
     object(value, `MCP server ${name}`);
     if (Object.keys(value).some((key) => !["command", "url", "enabled"].includes(key)))
       fail(`nonportable MCP fields: ${name}`);
@@ -408,11 +409,13 @@ export function syncProviders({ root = process.cwd(), check = false, preserveCla
     // TOML stays lossless outside the block. Do not guess how to merge a table.
     for (const key of managedNames) {
       const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const quoted = `(?:${escaped}|["']${escaped}["'])`;
+      const header = `(?:mcp_servers|["']mcp_servers["'])`;
       if (
-        new RegExp(
-          `^\\s*\\[\\s*mcp_servers\\s*\\.\\s*["']?${escaped}["']?\\s*(?:\\.|\\])`,
-          "m",
-        ).test(unmanaged)
+        new RegExp(`^\\s*\\[\\s*${header}\\s*\\.\\s*${quoted}\\s*(?:\\.|\\])`, "m").test(
+          unmanaged,
+        ) ||
+        new RegExp(`^\\s*${header}\\s*\\.\\s*${quoted}\\s*(?:\\.|\\s*=)`, "m").test(unmanaged)
       )
         fail(
           `unmanaged MCP table conflict in ${name}: ${key}; move its portable definition to .agents/mcp.json first`,

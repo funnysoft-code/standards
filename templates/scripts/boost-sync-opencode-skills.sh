@@ -100,7 +100,7 @@ function walk(directory, prefix = '') {
     const stat = fs.lstatSync(absolute);
     if (stat.isDirectory()) walk(absolute, relative);
     else if (stat.isFile()) {
-      hash.update(relative); hash.update('\0'); hash.update(fs.readFileSync(absolute)); hash.update('\0');
+      hash.update(relative); hash.update('\0'); hash.update(String(stat.mode & 0o777)); hash.update('\0'); hash.update(fs.readFileSync(absolute)); hash.update('\0');
     } else throw new Error(`unsupported entry in managed skill: ${relative}`);
   }
 }

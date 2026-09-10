@@ -474,6 +474,23 @@ fi
       assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
       assert.equal(fs.readFileSync(materialized, 'utf8'), 'Managed v2\n');
     });
+    check('api-next: mode-only managed Boost destination refuses replacement', () => {
+      const generatedSkill = path.join(phpRoot, '.agents/skills/mode-fixture/SKILL.md');
+      const materialized = path.join(app, '.agents/skills/mode-fixture/SKILL.md');
+      put(generatedSkill, 'Mode v1\n');
+      assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
+      const originalMode = fs.statSync(materialized).mode & 0o777;
+      fs.chmodSync(materialized, 0o700);
+      put(generatedSkill, 'Mode v2\n');
+      const r = run('boost-sync-opencode-skills.sh');
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, /edited managed destination refuses replacement/);
+      assert.equal(fs.readFileSync(materialized, 'utf8'), 'Mode v1\n');
+      assert.equal(fs.statSync(materialized).mode & 0o777, 0o700);
+      fs.chmodSync(materialized, originalMode);
+      put(generatedSkill, 'Mode v1\n');
+      assert.equal(run('boost-sync-opencode-skills.sh').status, 0);
+    });
     check('api-next: interrupted receipt publication recovers exact desired output', () => {
       const generatedSkill = path.join(phpRoot, '.agents/skills/recovery-fixture/SKILL.md');
       const materialized = path.join(app, '.agents/skills/recovery-fixture/SKILL.md');

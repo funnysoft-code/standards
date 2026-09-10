@@ -119,12 +119,24 @@ try {
   const collisionBefore = snapshot(collision);
   assert.match(run(collision).stderr, /conflicting canonical/);
   assert.deepEqual(snapshot(collision), collisionBefore);
-  const toml = path.join(temporary, 'toml');
-  put(toml, '.agents/mcp.json', '{"servers":{"tool":{"command":["tool"]}}}');
-  put(toml, '.codex/config.toml', '[mcp_servers.tool]\ncommand = "custom"\n');
-  const tomlBefore = snapshot(toml);
-  assert.match(run(toml).stderr, /unmanaged MCP table conflict/);
-  assert.deepEqual(snapshot(toml), tomlBefore);
+  const tomlCases = [
+    '[mcp_servers.tool]\ncommand = "custom"\n',
+    '["mcp_servers"."tool"]\ncommand = "custom"\n',
+    'mcp_servers.tool.command = "custom"\n',
+  ];
+  for (const [index, content] of tomlCases.entries()) {
+    const toml = path.join(temporary, `toml-${index}`);
+    put(toml, '.agents/mcp.json', '{"servers":{"tool":{"command":["tool"]}}}');
+    put(toml, '.codex/config.toml', content);
+    const tomlBefore = snapshot(toml);
+    assert.match(run(toml).stderr, /unmanaged MCP table conflict/, content);
+    assert.deepEqual(snapshot(toml), tomlBefore, content);
+  }
+  const reserved = path.join(temporary, 'reserved-mcp-name');
+  put(reserved, '.agents/mcp.json', '{"servers":{"__proto__":{"command":["tool"]}}}');
+  const reservedBefore = snapshot(reserved);
+  assert.match(run(reserved).stderr, /invalid MCP server name/);
+  assert.deepEqual(snapshot(reserved), reservedBefore);
 
   const jsonCollisions = [
     ['opencode.json', { mcp: { tool: { type: 'local', command: ['replacement'] } } }],
