@@ -137,6 +137,11 @@ try {
   const reservedBefore = snapshot(reserved);
   assert.match(run(reserved).stderr, /invalid MCP server name/);
   assert.deepEqual(snapshot(reserved), reservedBefore);
+  const legacyReserved = path.join(temporary, 'legacy-reserved-mcp-name');
+  put(legacyReserved, 'opencode.json', '{"mcp":{"servers":{"__proto__":{"type":"local","command":["tool"]}}}}');
+  const legacyReservedBefore = snapshot(legacyReserved);
+  assert.match(run(legacyReserved).stderr, /invalid MCP server name/);
+  assert.deepEqual(snapshot(legacyReserved), legacyReservedBefore);
 
   const jsonCollisions = [
     ['opencode.json', { mcp: { tool: { type: 'local', command: ['replacement'] } } }],

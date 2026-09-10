@@ -268,8 +268,13 @@ export function syncProviders({ root = process.cwd(), check = false, preserveCla
   let canonical = parse(".agents/mcp.json", null);
   if (!canonical) {
     const legacy = opencode.mcp?.servers ?? opencode.mcp ?? {};
-    canonical = { servers: {} };
+    canonical = { servers: Object.create(null) };
     for (const [name, value] of Object.entries(object(legacy, "OpenCode MCP"))) {
+      if (
+        !/^[a-zA-Z0-9_-]+$/.test(name) ||
+        ["__proto__", "prototype", "constructor"].includes(name)
+      )
+        fail("invalid MCP server name");
       object(value, `MCP server ${name}`);
       if (
         Object.keys(value).some(
